@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Chat from "../Chat";
 import MatchedUsersList from "../MatchedUsersList";
+import { SocketContext } from "../../SocketContext";
+import { io } from "socket.io-client";
 
 interface User {
   profilePictures: string[];
@@ -21,7 +23,10 @@ const Home = ({ setIsLoggedIn, isLoggedIn }: HomeType) => {
   const [users, setUsers] = useState<User[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [error, setError] = useState("");
+  const [refresh, setRefresh] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState(null);
+  const { socket, setCurrentSocket }: any = useContext(SocketContext);
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -34,6 +39,23 @@ const Home = ({ setIsLoggedIn, isLoggedIn }: HomeType) => {
     }
   }, []);
 
+  //Handle if user refresh
+  useEffect(() => {
+    if (!socket) {
+      const user = JSON.parse(localStorage.getItem("user") || "");
+      console.log(user._id);
+      const refreshSocket = io(
+        `${import.meta.env.VITE_LOCAL_API_URL}?userId=${user._id}`
+      );
+      setCurrentSocket(refreshSocket);
+      setRefresh(true);
+      return;
+    } else {
+      setRefresh(false);
+    }
+  }, [socket]);
+
+  //Swipe user
   const fetchUserIdAndNearbyUsers = async (token: string) => {
     try {
       const userData = JSON.parse(localStorage.getItem("user") || "");
@@ -48,7 +70,7 @@ const Home = ({ setIsLoggedIn, isLoggedIn }: HomeType) => {
       setError("Không thể lấy thông tin người dùng.");
     }
   };
-
+  //Chat
   const fetchNearbyUsers = async (userId: string) => {
     try {
       const response = await fetch(
@@ -89,7 +111,7 @@ const Home = ({ setIsLoggedIn, isLoggedIn }: HomeType) => {
     setCurrentIndex((prevIndex) => prevIndex + 1);
   };
 
-  const handleSelectUser = (userId: string) => {
+  const handleSelectUser = (userId: any) => {
     setSelectedUserId(userId);
   };
 
@@ -98,14 +120,19 @@ const Home = ({ setIsLoggedIn, isLoggedIn }: HomeType) => {
       {isLoggedIn ? (
         <>
           <div className="w-1/4 bg-white p-4 overflow-y-auto">
-            <MatchedUsersList onSelectUser={handleSelectUser} />
+            <MatchedUsersList
+              refresh={refresh}
+              onSelectUser={handleSelectUser}
+            />
           </div>
           <div className="w-3/4 flex items-center justify-center p-4">
             <div className="bg-white bg-opacity-90 rounded-3xl shadow-2xl p-8 max-w-md w-full">
               {error && <p className="text-red-500 mb-4">{error}</p>}
               {currentIndex < users.length ? (
                 <div className="text-center">
-                  <h2 className="text-2xl font-semibold mb-4 text-gray-800">{users[currentIndex].name}</h2>
+                  <h2 className="text-2xl font-semibold mb-4 text-gray-800">
+                    {users[currentIndex].name}
+                  </h2>
                   <div className="relative mb-6">
                     <img
                       src={users[currentIndex].profilePictures[0]}
@@ -120,8 +147,19 @@ const Home = ({ setIsLoggedIn, isLoggedIn }: HomeType) => {
                       className="bg-red-500 hover:bg-red-600 text-white rounded-full p-4 transition duration-300 ease-in-out transform hover:scale-110"
                       title="Không thích"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-8 w-8"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
                       </svg>
                     </button>
                     <button
@@ -129,23 +167,39 @@ const Home = ({ setIsLoggedIn, isLoggedIn }: HomeType) => {
                       className="bg-green-500 hover:bg-green-600 text-white rounded-full p-4 transition duration-300 ease-in-out transform hover:scale-110"
                       title="Thích"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-8 w-8"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                        />
                       </svg>
                     </button>
                   </div>
                 </div>
               ) : (
-                <p className="text-xl text-gray-700">Không còn người dùng nào để hiển thị.</p>
+                <p className="text-xl text-gray-700">
+                  Không còn người dùng nào để hiển thị.
+                </p>
               )}
             </div>
           </div>
           {selectedUserId && (
             <div className="fixed bottom-0 right-0 w-1/3 h-1/2 bg-white shadow-lg rounded-tl-lg overflow-hidden">
-              <Chat 
-                userId={JSON.parse(localStorage.getItem("user") || "{}")._id} 
-                targetUserId={selectedUserId} 
-                targetUserName={users.find(user => user._id === selectedUserId)?.name || "Người dùng"}
+              <Chat
+                userId={JSON.parse(localStorage.getItem("user") || "{}")._id}
+                targetUserId={selectedUserId}
+                targetUserName={
+                  users.find((user) => user._id === selectedUserId)?.name ||
+                  "Người dùng"
+                }
                 onClose={() => setSelectedUserId(null)}
               />
             </div>
@@ -154,7 +208,9 @@ const Home = ({ setIsLoggedIn, isLoggedIn }: HomeType) => {
       ) : (
         <div className="w-full flex items-center justify-center">
           <div className="bg-white bg-opacity-90 rounded-3xl shadow-2xl p-8 max-w-md w-full text-center">
-            <h1 className="text-4xl font-bold mb-6 text-gray-800">Chào mừng đến với Dating App!</h1>
+            <h1 className="text-4xl font-bold mb-6 text-gray-800">
+              Chào mừng đến với Dating App!
+            </h1>
             <p className="text-lg text-gray-600 mb-8">
               Khám phá những kết nối mới và tìm kiếm tình yêu đích thực của bạn.
             </p>

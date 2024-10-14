@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSubmitLogin } from "./hooks/useLogin";
+import { SocketContext } from "../../SocketContext";
 
 export type LoginType = {
   setIsLoggedIn: React.Dispatch<React.SetStateAction<boolean>>;
@@ -12,8 +13,14 @@ const Login = ({ setIsLoggedIn, setUserId }: LoginType) => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<any>("");
   const navigate = useNavigate();
-  const submit = useSubmitLogin(navigate, setError, setIsLoggedIn, setUserId);
-
+  const socketContext: any = useContext(SocketContext);
+  const submit = useSubmitLogin(
+    navigate,
+    setError,
+    setIsLoggedIn,
+    setUserId,
+    socketContext.setCurrentSocket
+  );
   const handleEmailChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(event.target.value);
   };
@@ -24,20 +31,28 @@ const Login = ({ setIsLoggedIn, setUserId }: LoginType) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await submit.mutateAsync({
+    const data = await submit.mutateAsync({
       email,
       password,
     });
+    console.log(data);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-400 via-pink-500 to-red-500 flex items-center justify-center p-4">
       <div className="bg-white bg-opacity-90 rounded-3xl shadow-2xl p-8 max-w-md w-full">
-        <h2 className="text-3xl font-bold mb-6 text-center text-gray-800">Đăng Nhập</h2>
-        {error !== "" && <p className="text-red-500 mb-4 text-center">{error}</p>}
+        <h2 className="text-3xl font-bold mb-6 text-center text-gray-800">
+          Đăng Nhập
+        </h2>
+        {error !== "" && (
+          <p className="text-red-500 mb-4 text-center">{error}</p>
+        )}
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Email
             </label>
             <input
@@ -50,7 +65,10 @@ const Login = ({ setIsLoggedIn, setUserId }: LoginType) => {
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Mật khẩu
             </label>
             <input
