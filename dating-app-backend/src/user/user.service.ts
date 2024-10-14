@@ -1,4 +1,4 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from './schema/user.schema';
@@ -237,5 +237,15 @@ export class UserService {
 
   async validatePassword(plainPassword: string, hashedPassword: string): Promise<boolean> {
     return await bcrypt.compare(plainPassword, hashedPassword);
+  }
+
+  async getMatchedUsers(userId: string): Promise<UserDocument[]> {
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new HttpException('Không tìm thấy người dùng', HttpStatus.NOT_FOUND);
+    }
+
+    // Lấy danh sách người dùng đã match với người dùng hiện tại
+    return this.userModel.find({ _id: { $in: user.matchedUsers } }).exec();
   }
 }

@@ -19,32 +19,39 @@ const Navbar = ({ isLoggedIn, setIsLoggedIn, setUserId }: NavbarType) => {
   };
 
   return (
-    <nav className="absolute top-0 h-[80px] w-screen bg-gradient-to-r from-pink-500 to-purple-500 p-4 shadow-lg">
+    <nav className="absolute top-0 w-full bg-gray-800 p-4 shadow-md z-10">
       <div className="container mx-auto flex justify-between items-center">
-        <Link to="/" className="text-white text-2xl font-bold">
+        <Link to="/" className="text-white text-2xl font-bold hover:text-gray-300 transition duration-300">
           Dating App
         </Link>
-        <div>
+        <div className="space-x-4">
           {isLoggedIn ? (
             <>
               <Link
-                to={`/users/${
-                  JSON.parse(localStorage.getItem("user") || "{}")._id
-                }`}
-                className="text-white mr-4"
+                to={`/users/${JSON.parse(localStorage.getItem("user") || "{}")._id}`}
+                className="text-white bg-pink-500 hover:bg-pink-600 px-4 py-2 rounded-full font-medium transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-opacity-50"
               >
                 Hồ Sơ
               </Link>
-              <button onClick={handleLogout} className="text-white">
+              <button
+                onClick={handleLogout}
+                className="text-white bg-purple-500 hover:bg-purple-600 px-4 py-2 rounded-full font-medium transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-50"
+              >
                 Đăng Xuất
               </button>
             </>
           ) : (
             <>
-              <Link to="/login" className="text-white mr-4">
+              <Link
+                to="/login"
+                className="text-white bg-pink-500 hover:bg-pink-600 px-4 py-2 rounded-full font-medium transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-opacity-50"
+              >
                 Đăng Nhập
               </Link>
-              <Link to="/register" className="text-white">
+              <Link
+                to="/register"
+                className="text-white bg-purple-500 hover:bg-purple-600 px-4 py-2 rounded-full font-medium transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-50"
+              >
                 Đăng Ký
               </Link>
             </>

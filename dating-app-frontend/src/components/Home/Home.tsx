@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Chat from "../Chat";
+import MatchedUsersList from "../MatchedUsersList";
 
 interface User {
   profilePictures: string[];
@@ -20,8 +21,7 @@ const Home = ({ setIsLoggedIn, isLoggedIn }: HomeType) => {
   const [users, setUsers] = useState<User[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [error, setError] = useState("");
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [targetUserId, setTargetUserId] = useState(null);
+  const [selectedUserId, setSelectedUserId] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -89,68 +89,91 @@ const Home = ({ setIsLoggedIn, isLoggedIn }: HomeType) => {
     setCurrentIndex((prevIndex) => prevIndex + 1);
   };
 
-  const handleChat = (userId: any) => {
-    setTargetUserId(userId);
-    setIsChatOpen(true);
+  const handleSelectUser = (userId: string) => {
+    setSelectedUserId(userId);
   };
 
   return (
-    <div className="container mx-auto p-6 w-full bg-gradient-to-b from-purple-200 to-blue-200">
-      {error && <p className="text-red-500">{error}</p>}
-      {!isLoggedIn ? (
-        <div className="text-center">
-          <h1 className="text-3xl font-bold">Chào mừng đến với Dating App!</h1>
-          <p className="mt-4">
-            Kết nối với những người bạn mới và tìm kiếm tình yêu của bạn.
-          </p>
-          <button
-            onClick={() => navigate("/login")}
-            className="mt-4 bg-blue-500 text-white rounded py-2 px-4"
-          >
-            Đăng Nhập
-          </button>
-          <button
-            onClick={() => navigate("/register")}
-            className="mt-2 bg-green-500 text-white rounded py-2 px-4"
-          >
-            Đăng Ký
-          </button>
-        </div>
-      ) : currentIndex < users.length ? (
-        <div className="border p-4 mb-4 rounded shadow-md bg-white text-black">
-          <h2 className="text-xl">{users[currentIndex].name}</h2>
-          <img
-            src={users[currentIndex].profilePictures[0]}
-            alt={users[currentIndex].name}
-            className="w-20 h-20 object-cover rounded-full mr-2"
-          />
-          <button
-            onClick={() => handleLike(users[currentIndex]._id)}
-            className="bg-blue-500 text-white rounded py-1 px-2 mr-2"
-          >
-            Thích
-          </button>
-          <button
-            onClick={handleDislike}
-            className="bg-red-500 text-white rounded py-1 px-2"
-          >
-            Không Thích
-          </button>
-          <button
-            onClick={() => handleChat(users[currentIndex]._id)}
-            className="bg-green-500 text-white rounded py-1 px-2 ml-2"
-          >
-            Chat
-          </button>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-purple-400 via-pink-500 to-red-500 flex">
+      {isLoggedIn ? (
+        <>
+          <div className="w-1/4 bg-white p-4 overflow-y-auto">
+            <MatchedUsersList onSelectUser={handleSelectUser} />
+          </div>
+          <div className="w-3/4 flex items-center justify-center p-4">
+            <div className="bg-white bg-opacity-90 rounded-3xl shadow-2xl p-8 max-w-md w-full">
+              {error && <p className="text-red-500 mb-4">{error}</p>}
+              {currentIndex < users.length ? (
+                <div className="text-center">
+                  <h2 className="text-2xl font-semibold mb-4 text-gray-800">{users[currentIndex].name}</h2>
+                  <div className="relative mb-6">
+                    <img
+                      src={users[currentIndex].profilePictures[0]}
+                      alt={users[currentIndex].name}
+                      className="w-64 h-64 object-cover rounded-full mx-auto shadow-lg"
+                    />
+                    <div className="absolute inset-0 bg-black bg-opacity-20 rounded-full"></div>
+                  </div>
+                  <div className="flex justify-center space-x-4 mb-6">
+                    <button
+                      onClick={() => handleDislike()}
+                      className="bg-red-500 hover:bg-red-600 text-white rounded-full p-4 transition duration-300 ease-in-out transform hover:scale-110"
+                      title="Không thích"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleLike(users[currentIndex]._id)}
+                      className="bg-green-500 hover:bg-green-600 text-white rounded-full p-4 transition duration-300 ease-in-out transform hover:scale-110"
+                      title="Thích"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xl text-gray-700">Không còn người dùng nào để hiển thị.</p>
+              )}
+            </div>
+          </div>
+          {selectedUserId && (
+            <div className="fixed bottom-0 right-0 w-1/3 h-1/2 bg-white shadow-lg rounded-tl-lg overflow-hidden">
+              <Chat 
+                userId={JSON.parse(localStorage.getItem("user") || "{}")._id} 
+                targetUserId={selectedUserId} 
+                targetUserName={users.find(user => user._id === selectedUserId)?.name || "Người dùng"}
+                onClose={() => setSelectedUserId(null)}
+              />
+            </div>
+          )}
+        </>
       ) : (
-        <p>Không còn người dùng nào để hiển thị.</p>
-      )}
-      {isChatOpen && (
-        <Chat
-          userId={JSON.parse(localStorage.getItem("user") || "{}")._id ?? ""}
-          targetUserId={targetUserId}
-        />
+        <div className="w-full flex items-center justify-center">
+          <div className="bg-white bg-opacity-90 rounded-3xl shadow-2xl p-8 max-w-md w-full text-center">
+            <h1 className="text-4xl font-bold mb-6 text-gray-800">Chào mừng đến với Dating App!</h1>
+            <p className="text-lg text-gray-600 mb-8">
+              Khám phá những kết nối mới và tìm kiếm tình yêu đích thực của bạn.
+            </p>
+            <div className="space-y-4">
+              <button
+                onClick={() => navigate("/login")}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-full transition duration-300 ease-in-out transform hover:scale-105"
+              >
+                Đăng Nhập
+              </button>
+              <button
+                onClick={() => navigate("/register")}
+                className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-full transition duration-300 ease-in-out transform hover:scale-105"
+              >
+                Đăng Ký
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

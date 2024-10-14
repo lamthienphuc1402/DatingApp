@@ -22,7 +22,7 @@ function App() {
           setIsLoggedIn={setIsLoggedIn}
           setUserId={setUserId}
         />
-        <main className="mt-[8rem]">
+        <main>
           <Routes>
             <Route
               path="/"

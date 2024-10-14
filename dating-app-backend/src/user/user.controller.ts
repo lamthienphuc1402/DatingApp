@@ -103,5 +103,8 @@ export class UserController {
     return this.userService.updateUser(userId, updateUserDto);
   }
 
-  
+  @Get(':id/matches')
+  async getMatchedUsers(@Param('id') id: string) {
+    return this.userService.getMatchedUsers(id);
+  }
 }

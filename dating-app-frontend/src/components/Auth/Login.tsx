@@ -31,40 +31,45 @@ const Login = ({ setIsLoggedIn, setUserId }: LoginType) => {
   };
 
   return (
-    <div className="flex items-center justify-center h-screen bg-gradient-to-r from-pink-300 to-purple-300">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-6 rounded shadow-md w-96"
-      >
-        <h2 className="text-2xl mb-4">Đăng Nhập</h2>
-        {error !== "" && <p className="text-red-500">{error}</p>}
-        <div className="mb-4">
-          <label className="block text-gray-700">Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={handleEmailChange}
-            className="border rounded w-full py-2 px-3"
-            required
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block text-gray-700">Mật khẩu</label>
-          <input
-            type="password"
-            value={password}
-            onChange={handlePasswordChange}
-            className="border rounded w-full py-2 px-3"
-            required
-          />
-        </div>
-        <button
-          type="submit"
-          className="bg-blue-500 text-white rounded py-2 px-4"
-        >
-          Đăng Nhập
-        </button>
-      </form>
+    <div className="min-h-screen bg-gradient-to-br from-purple-400 via-pink-500 to-red-500 flex items-center justify-center p-4">
+      <div className="bg-white bg-opacity-90 rounded-3xl shadow-2xl p-8 max-w-md w-full">
+        <h2 className="text-3xl font-bold mb-6 text-center text-gray-800">Đăng Nhập</h2>
+        {error !== "" && <p className="text-red-500 mb-4 text-center">{error}</p>}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={handleEmailChange}
+              className="w-full px-4 py-2 bg-white text-black border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              required
+            />
+          </div>
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+              Mật khẩu
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={handlePasswordChange}
+              className="w-full px-4 py-2 bg-white text-black border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-3 px-4 rounded-full transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50"
+          >
+            Đăng Nhập
+          </button>
+        </form>
+      </div>
     </div>
   );
 };
