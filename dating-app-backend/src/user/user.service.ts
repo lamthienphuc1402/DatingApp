@@ -1,4 +1,9 @@
-import { Injectable, HttpException, HttpStatus, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  HttpException,
+  HttpStatus,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from './schema/user.schema';
@@ -9,6 +14,7 @@ import { randomUUID } from 'crypto'; // Thêm import để tạo mã xác thực
 import { VerifyUserDto } from './dto/verify-user.dto'; // Nhập VerifyUserDto
 import { LocationService } from 'src/location-service/location-service.service';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 
 @Injectable()
 export class UserService {
@@ -16,15 +22,25 @@ export class UserService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private emailService: EmailService, // Thêm EmailService vào constructor
     private locationService: LocationService,
-  ) { }
+    private readonly cloudinaryService: CloudinaryService,
+  ) {}
 
-  async create(createUserDto: CreateUserDto, ip: string): Promise<UserDocument> {
+  async create(
+    file: any,
+    createUserDto: CreateUserDto,
+    ip: string,
+  ): Promise<UserDocument> {
+    console.log('DTO checked');
+    console.log(createUserDto.name);
     // Lấy vị trí từ IP
     const location = await this.getUserLocation(ip); // Lấy vị trí từ IP
 
-    // Kiểm tra xem longitude và latitude có hợp lệ không
+    // // Kiểm tra xem longitude và latitude có hợp lệ không
     if (!location.longitude || !location.latitude) {
-      throw new HttpException('Location could not be determined', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Location could not be determined',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     // Kiểm tra xem email đã tồn tại chưa
@@ -36,6 +52,19 @@ export class UserService {
     const verificationCode = randomUUID(); // Tạo mã xác thực
 
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10); // Băm mật khẩu với bcrypt
+    let stringUrls = [];
+
+    if (file) {
+      const result = await this.cloudinaryService.uploadFile(file);
+      // stringUrls = await Promise.all(
+      //   data.map(async (profilePicture) => {
+      //     const result =
+      //       await this.cloudinaryService.uploadFile(profilePicture);
+      //     return result;
+      //   }),
+      // );
+      stringUrls = [result.url];
+    }
 
     const createdUser = new this.userModel({
       ...createUserDto,
@@ -44,11 +73,15 @@ export class UserService {
         type: 'Point', // Đảm bảo rằng type được cung cấp
         coordinates: [location.longitude, location.latitude], // Sử dụng tọa độ từ vị trí
       },
+      profilePictures: stringUrls,
       verificationCode, // Lưu mã xác thực vào cơ sở dữ liệu
     });
 
     // Gửi email xác thực
-    await this.emailService.sendVerificationEmail(createUserDto.email, verificationCode);
+    await this.emailService.sendVerificationEmail(
+      createUserDto.email,
+      verificationCode,
+    );
 
     return createdUser.save();
   }
@@ -57,14 +90,20 @@ export class UserService {
     return this.userModel.findOne({ email });
   }
 
-  async verifyUser(userId: string, verifyUserDto: VerifyUserDto): Promise<{ message: string }> {
+  async verifyUser(
+    userId: string,
+    verifyUserDto: VerifyUserDto,
+  ): Promise<{ message: string }> {
     const user = await this.userModel.findById(userId);
     if (!user) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
 
     if (user.verificationCode !== verifyUserDto.code) {
-      throw new HttpException('Invalid verification code', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Invalid verification code',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     user.isVerified = true; // Cập nhật trạng thái xác thực
@@ -78,25 +117,30 @@ export class UserService {
   async findNearbyUsers(userId: string, maxDistance: number): Promise<User[]> {
     const user = await this.userModel.findById(userId);
     if (!user || !user.location) {
-      throw new HttpException('User not found or location not set', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        'User not found or location not set',
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     // Kiểm tra tọa độ của người dùng
     console.log('User Location:', user.location.coordinates);
 
     // Tìm kiếm người dùng gần
-    const nearbyUsers = await this.userModel.find({
-      location: {
-        $near: {
-          $geometry: {
-            type: 'Point',
-            coordinates: user.location.coordinates,
+    const nearbyUsers = await this.userModel
+      .find({
+        location: {
+          $near: {
+            $geometry: {
+              type: 'Point',
+              coordinates: user.location.coordinates,
+            },
+            $maxDistance: maxDistance, // Đơn vị là mét
           },
-          $maxDistance: maxDistance, // Đơn vị là mét
         },
-      },
-      _id: { $ne: userId, $nin: user.likedUsers }, // Không tìm kiếm chính người dùng và những người đã thích
-    }).exec();
+        _id: { $ne: userId, $nin: user.likedUsers }, // Không tìm kiếm chính người dùng và những người đã thích
+      })
+      .exec();
 
     // Kiểm tra danh sách người dùng gần
     console.log('Nearby Users:', nearbyUsers);
@@ -104,12 +148,21 @@ export class UserService {
     return nearbyUsers; // Trả về danh sách người dùng gần
   }
 
-  async updateUserLocation(userId: string, location: { type: string; coordinates: number[] }): Promise<UserDocument> {
-    return this.userModel.findByIdAndUpdate(userId, { location }, { new: true });
+  async updateUserLocation(
+    userId: string,
+    location: { type: string; coordinates: number[] },
+  ): Promise<UserDocument> {
+    return this.userModel.findByIdAndUpdate(
+      userId,
+      { location },
+      { new: true },
+    );
   }
 
   // Thêm phương thức để lấy vị trí người dùng
-  async getUserLocation(ip: string): Promise<{ longitude: number; latitude: number }> {
+  async getUserLocation(
+    ip: string,
+  ): Promise<{ longitude: number; latitude: number }> {
     try {
       // Sử dụng một dịch vụ bên ngoài để lấy vị trí từ IP
       const response = await this.locationService.getLocationByIP(ip);
@@ -198,7 +251,10 @@ export class UserService {
     return this.userModel.find({ _id: { $in: user.likedBy } }).exec();
   }
 
-  async updateUser(userId: string, updateUserDto: UpdateUserDto): Promise<UserDocument> {
+  async updateUser(
+    userId: string,
+    updateUserDto: UpdateUserDto,
+  ): Promise<UserDocument> {
     const user = await this.userModel.findById(userId);
     if (!user) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
@@ -231,18 +287,27 @@ export class UserService {
 
     return user.save(); // Lưu thay đổi vào cơ sở dữ liệu
   }
-  async setUserOnline(userId: string, isOnline: boolean): Promise<UserDocument> {
-    return this.userModel.findByIdAndUpdate(userId, { isOnline }, { new: true });
+  async setUserOnline(
+    userId: string,
+    isOnline: boolean,
+  ): Promise<UserDocument> {
+    return this.userModel.findByIdAndUpdate(userId, { isOnline });
   }
 
-  async validatePassword(plainPassword: string, hashedPassword: string): Promise<boolean> {
+  async validatePassword(
+    plainPassword: string,
+    hashedPassword: string,
+  ): Promise<boolean> {
     return await bcrypt.compare(plainPassword, hashedPassword);
   }
 
   async getMatchedUsers(userId: string): Promise<UserDocument[]> {
     const user = await this.userModel.findById(userId);
     if (!user) {
-      throw new HttpException('Không tìm thấy người dùng', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        'Không tìm thấy người dùng',
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     // Lấy danh sách người dùng đã match với người dùng hiện tại

@@ -3,9 +3,15 @@ import axios from "axios";
 import { NavigateFunction } from "react-router-dom";
 
 const submitRegister = async (data: any) => {
+  console.log(DataTransferItem);
   const response = await axios.post(
     `${import.meta.env.VITE_LOCAL_API_URL}/users/register`,
-    data
+    data,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
   );
   return response;
 };
@@ -25,11 +31,11 @@ export const useSubmitRegister = (
     },
     onSuccess(data) {
       console.log(data);
-      setIsLoggedIn(true);
-      setUserId(data.user._id);
-      localStorage.setItem("token", data.token.refreshToken);
-      localStorage.setItem("user", JSON.stringify(data.user));
-      navigate("/");
+      // setIsLoggedIn(true);
+      // setUserId(data.user._id);
+      // localStorage.setItem("token", data.token.refreshToken);
+      // localStorage.setItem("user", JSON.stringify(data.user));
+      // navigate("/");
     },
     onError(error: any) {
       console.log(error);

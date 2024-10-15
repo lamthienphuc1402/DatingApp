@@ -1,4 +1,11 @@
-import { IsEmail, IsNotEmpty, IsString, IsNumber, IsOptional, IsArray } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsArray,
+} from 'class-validator';
 import { ApiProperty, ApiHideProperty } from '@nestjs/swagger'; // Nhập ApiHideProperty
 
 export class CreateUserDto {
@@ -15,7 +22,10 @@ export class CreateUserDto {
   @IsString()
   password: string;
 
-  @ApiProperty({ description: 'Thông tin bổ sung về người dùng', required: false })
+  @ApiProperty({
+    description: 'Thông tin bổ sung về người dùng',
+    required: false,
+  })
   bio?: string;
 
   @ApiProperty({ description: 'Sở thích của người dùng', required: false })
@@ -29,8 +39,11 @@ export class CreateUserDto {
   @IsNumber()
   latitude: number;
 
-  @ApiProperty({ description: 'Danh sách URL của ảnh cá nhân', required: false })
+  @ApiProperty({
+    description: 'Danh sách URL của ảnh cá nhân',
+    required: false,
+  })
   @IsOptional()
   @IsArray()
-  profilePictures?: string[]; // Thêm trường profilePictures
+  profilePictures?: any; // Thêm trường profilePictures
 }
