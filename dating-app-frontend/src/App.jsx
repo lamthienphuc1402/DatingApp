@@ -1,6 +1,11 @@
 /* eslint-disable no-unused-vars */
 import { useState } from "react";
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Route,
+  Routes,
+  useNavigate,
+} from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Login from "./components/Auth/Login";
 import Register from "./components/Auth/Register";
@@ -10,6 +15,9 @@ import UserProfile from "./components/User/UserProfile";
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userId, setUserId] = useState("");
+
+  const checkLogin =
+    Object.keys(JSON.parse(localStorage.getItem("user")) || {}).length === 0;
 
   return (
     <Router>
@@ -23,11 +31,15 @@ function App() {
           <Route
             path="/"
             element={
-              <Home
-                isLoggedIn={isLoggedIn}
-                setIsLoggedIn={setIsLoggedIn}
-                setUserId={setUserId}
-              />
+              checkLogin ? (
+                <Login setIsLoggedIn={setIsLoggedIn} setUserId={setUserId} />
+              ) : (
+                <Home
+                  isLoggedIn={isLoggedIn}
+                  setIsLoggedIn={setIsLoggedIn}
+                  setUserId={setUserId}
+                />
+              )
             }
           />
           <Route
@@ -42,7 +54,16 @@ function App() {
               <Login setIsLoggedIn={setIsLoggedIn} setUserId={setUserId} />
             }
           />
-          <Route path="/users/:userId" element={<UserProfile />} />
+          <Route
+            path="/users/:userId"
+            element={
+              checkLogin ? (
+                <Login setIsLoggedIn={setIsLoggedIn} setUserId={setUserId} />
+              ) : (
+                <UserProfile />
+              )
+            }
+          />
         </Routes>
       </main>
     </Router>
