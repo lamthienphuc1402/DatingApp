@@ -20,6 +20,8 @@ const UserProfileEdit = ({ userId, onUpdate }) => {
     profilePictures: [],
   });
   const [error, setError] = useState('');
+  const [newProfilePictures, setNewProfilePictures] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -45,42 +47,36 @@ const UserProfileEdit = ({ userId, onUpdate }) => {
     setUserData((prevData) => ({ ...prevData, [name]: value }));
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setNewProfilePictures(files);
+
+    const newPreviewUrls = files.map(file => URL.createObjectURL(file));
+    setPreviewUrls(newPreviewUrls);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await axios.put(`http://localhost:3000/users/${userId}`, {
-        ...userData,
-        interests: userData.interests.split(',').map((interest) => interest.trim()),
+      const formData = new FormData();
+      formData.append('name', userData.name);
+      formData.append('email', userData.email);
+      formData.append('bio', userData.bio);
+      formData.append('interests', userData.interests.split(',').map(interest => interest.trim()).toString());
+      
+      newProfilePictures.forEach((file) => {
+        formData.append('profilePictures', file);
+      });
+
+      await axios.put(`http://localhost:3000/users/${userId}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
       onUpdate();
     } catch (err) {
       setError('Cập nhật thông tin không thành công.');
     }
-  };
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    const storage = getStorage();
-    const newProfilePictures = [...userData.profilePictures];
-
-    for (const file of files) {
-      const fileId = uuidv4();
-      const storageRef = ref(storage, `profile_pictures/${userId}/${fileId}`);
-      
-      try {
-        const snapshot = await uploadBytes(storageRef, file);
-        const downloadURL = await getDownloadURL(snapshot.ref);
-        newProfilePictures.push(downloadURL);
-      } catch (error) {
-        console.error("Error uploading file:", error);
-        setError('Tải lên hình ảnh không thành công.');
-      }
-    }
-
-    setUserData(prevData => ({
-      ...prevData,
-      profilePictures: newProfilePictures
-    }));
   };
 
   return (
@@ -90,7 +86,7 @@ const UserProfileEdit = ({ userId, onUpdate }) => {
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="flex items-center mb-6">
           <img 
-            src={userData.profilePictures[0] || 'https://via.placeholder.com/150'} 
+            src={previewUrls[0] || userData.profilePictures[0] || 'https://via.placeholder.com/150'} 
             alt={userData.name} 
             className="w-32 h-32 rounded-full object-cover border-4 border-purple-500 mr-6"
           />
@@ -99,10 +95,24 @@ const UserProfileEdit = ({ userId, onUpdate }) => {
               type="file"
               accept="image/*"
               onChange={handleImageUpload}
+              multiple
               className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"
             />
           </div>
         </div>
+
+        {previewUrls.length > 0 && (
+          <div className="grid grid-cols-3 gap-2 mt-2">
+            {previewUrls.map((url, index) => (
+              <img
+                key={index}
+                src={url}
+                alt={`Preview ${index + 1}`}
+                className="w-full h-24 object-cover rounded-md"
+              />
+            ))}
+          </div>
+        )}
 
         <div className="bg-purple-100 rounded-xl p-6 mb-6">
           <label htmlFor="name" className="block text-sm font-medium text-purple-800 mb-1">Tên</label>

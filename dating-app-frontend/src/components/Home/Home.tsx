@@ -31,13 +31,29 @@ const Home = ({ setIsLoggedIn, isLoggedIn }: HomeType) => {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (token) {
+    const userString = localStorage.getItem("user");
+    if (token && userString) {
       setIsLoggedIn(true);
-      fetchUserIdAndNearbyUsers(token);
+      try {
+        const user = JSON.parse(userString);
+        fetchUserIdAndNearbyUsers(token, user._id);
+      } catch (error) {
+        console.error("Lỗi khi parse thông tin người dùng:", error);
+        // Xử lý lỗi, ví dụ: đăng xuất người dùng
+        handleLogout();
+      }
     } else {
       setIsLoggedIn(false);
     }
   }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    setIsLoggedIn(false);
+    // Chuyển hướng người dùng về trang đăng nhập nếu cần
+    // navigate("/login");
+  };
 
   //Handle if user refresh
   useEffect(() => {
@@ -56,20 +72,14 @@ const Home = ({ setIsLoggedIn, isLoggedIn }: HomeType) => {
   }, [socket]);
 
   //Swipe user
-  const fetchUserIdAndNearbyUsers = async (token: string) => {
+  const fetchUserIdAndNearbyUsers = async (token: string, userId: string) => {
     try {
-      const userData = JSON.parse(localStorage.getItem("user") || "");
-
-      if (!userData || !userData._id) {
-        throw new Error("Không thể lấy thông tin người dùng.");
-      }
-
-      const userId = userData._id; // Lấy userId từ thông tin người dùng
       fetchNearbyUsers(userId);
     } catch (err) {
       setError("Không thể lấy thông tin người dùng.");
     }
   };
+
   //Chat
   const fetchNearbyUsers = async (userId: string) => {
     try {
@@ -193,13 +203,22 @@ const Home = ({ setIsLoggedIn, isLoggedIn }: HomeType) => {
           </div>
           {selectedUserId && (
             <div className="fixed bottom-0 right-0 w-1/3 h-1/2 bg-white shadow-lg rounded-tl-lg overflow-hidden">
-              <Chat
-                userId={JSON.parse(localStorage.getItem("user") || "{}")._id}
-                targetUserId={selectedUserId}
-                targetUserName={
-                  users.find((user) => user._id === selectedUserId)?.name ||
-                  "Người dùng"
-                }
+              <Chat 
+                userId={(() => {
+                  const userString = localStorage.getItem("user");
+                  if (userString) {
+                    try {
+                      const user = JSON.parse(userString);
+                      return user._id;
+                    } catch (error) {
+                      console.error("Lỗi khi parse thông tin người dùng:", error);
+                      return null;
+                    }
+                  }
+                  return null;
+                })()}
+                targetUserId={selectedUserId} 
+                targetUserName={users.find(user => user._id === selectedUserId)?.name || "Người dùng"}
                 onClose={() => setSelectedUserId(null)}
               />
             </div>

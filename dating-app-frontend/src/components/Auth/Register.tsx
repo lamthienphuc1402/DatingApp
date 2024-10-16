@@ -12,7 +12,8 @@ const Register = ({ setIsLoggedIn, setUserId }: RegisterType) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [interests, setInterests] = useState("");
-  const [avatar, setAvatar] = useState<any>();
+  const [avatars, setAvatars] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
 
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -24,15 +25,26 @@ const Register = ({ setIsLoggedIn, setUserId }: RegisterType) => {
     setUserId
   );
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const filesArray = Array.from(e.target.files);
+      setAvatars(filesArray);
+
+      const newPreviewUrls = filesArray.map((file) => URL.createObjectURL(file));
+      setPreviewUrls(newPreviewUrls);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log(avatar);
     const formData = new FormData();
     formData.append("name", name);
     formData.append("email", email);
     formData.append("password", password);
     formData.append("interests", interests.split(",").toString());
-    formData.append("profilePictures", avatar);
+    avatars.forEach((avatar) => {
+      formData.append("profilePictures", avatar);
+    });
 
     await submit.mutateAsync(formData);
   };
@@ -109,11 +121,33 @@ const Register = ({ setIsLoggedIn, setUserId }: RegisterType) => {
             />
           </div>
           <div>
+            <label
+              htmlFor="avatars"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Ảnh cá nhân
+            </label>
             <input
+              id="avatars"
               type="file"
-              onChange={(e) => setAvatar(e.target.files && e.target.files[0])}
+              onChange={handleFileChange}
+              multiple
+              accept="image/*"
+              className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"
             />
           </div>
+          {previewUrls.length > 0 && (
+            <div className="grid grid-cols-3 gap-2 mt-2">
+              {previewUrls.map((url, index) => (
+                <img
+                  key={index}
+                  src={url}
+                  alt={`Preview ${index + 1}`}
+                  className="w-full h-24 object-cover rounded-md"
+                />
+              ))}
+            </div>
+          )}
           <button
             type="submit"
             className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-3 px-4 rounded-full transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50"
@@ -127,3 +161,4 @@ const Register = ({ setIsLoggedIn, setUserId }: RegisterType) => {
 };
 
 export default Register;
+
