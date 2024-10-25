@@ -12,7 +12,7 @@ interface MatchedUser {
   bio: string;
 }
 
-const MatchedUsersList = ({ onSelectUser, refresh }: any) => {
+const MatchedUsersList = () => {
   const [matchedUsers, setMatchedUsers] = useState<MatchedUser[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredUsers, setFilteredUsers] = useState(matchedUsers);
@@ -75,13 +75,17 @@ const MatchedUsersList = ({ onSelectUser, refresh }: any) => {
   return (
     <div className="matched-users-list bg-white rounded-lg shadow-md p-4 h-full">
       {selectedUser ? (
-        <Chat
-          userId={JSON.parse(localStorage.getItem("user") || "{}")._id}
-          targetUserId={selectedUser._id}
-          targetUserName={selectedUser.name}
-          targetUserProfilePicture={selectedUser.profilePictures}
-          onBack={handleBackToList}
-        />
+        <>
+          <div className="h-[85vh]">
+            <Chat
+              userId={JSON.parse(localStorage.getItem("user") || "{}")._id}
+              targetUserId={selectedUser._id}
+              targetUserName={selectedUser.name}
+              targetUserProfilePicture={selectedUser.profilePictures}
+              onBack={handleBackToList}
+            />
+          </div>
+        </>
       ) : (
         <>
           <h2 className="text-2xl font-bold mb-4 text-gray-800">
