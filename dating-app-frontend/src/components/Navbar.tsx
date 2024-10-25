@@ -21,7 +21,7 @@ const Navbar = ({ isLoggedIn, setIsLoggedIn, setUserId }: NavbarType) => {
   };
 
   return (
-    <nav className="absolute top-0 w-full bg-gray-800 p-4 shadow-md z-10">
+    <nav className="fixed top-0 w-full bg-gray-800 p-4 shadow-md z-50">
       <div className="container mx-auto flex justify-between items-center">
         <Link
           to="/"

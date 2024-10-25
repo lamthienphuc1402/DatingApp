@@ -24,7 +24,7 @@ const Home = ({ setIsLoggedIn, isLoggedIn }: HomeType) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(false);
-  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const { socket, setCurrentSocket }: any = useContext(SocketContext);
 
   const navigate = useNavigate();
@@ -72,7 +72,7 @@ const Home = ({ setIsLoggedIn, isLoggedIn }: HomeType) => {
   }, [socket]);
 
   //Swipe user
-  const fetchUserIdAndNearbyUsers = async (token: string, userId: string) => {
+  const fetchUserIdAndNearbyUsers = async (_token: string, userId: string) => {
     try {
       fetchNearbyUsers(userId);
     } catch (err) {
@@ -121,21 +121,26 @@ const Home = ({ setIsLoggedIn, isLoggedIn }: HomeType) => {
     setCurrentIndex((prevIndex) => prevIndex + 1);
   };
 
-  const handleSelectUser = (userId: any) => {
-    setSelectedUserId(userId);
+  const handleSelectUser = (userId: string) => {
+    const user = users.find(user => user._id === userId);
+    if (user) {
+      setSelectedUser(user);
+    } else {
+      console.error("Không tìm thấy người dùng với ID:", userId);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-400 via-pink-500 to-red-500 flex">
+    <div className="min-h-screen pt-16 bg-gradient-to-br from-purple-400 via-pink-500 to-red-500 flex">
       {isLoggedIn ? (
         <>
-          <div className="w-1/4 bg-white p-4 overflow-y-auto">
+          <div className="w-1/3 bg-white p-4 overflow-y-auto">
             <MatchedUsersList
               refresh={refresh}
               onSelectUser={handleSelectUser}
             />
           </div>
-          <div className="w-3/4 flex items-center justify-center p-4">
+          <div className="w-2/3 flex items-center justify-center p-4">
             <div className="bg-white bg-opacity-90 rounded-3xl shadow-2xl p-8 max-w-md w-full">
               {error && <p className="text-red-500 mb-4">{error}</p>}
               {currentIndex < users.length ? (
@@ -201,7 +206,7 @@ const Home = ({ setIsLoggedIn, isLoggedIn }: HomeType) => {
               )}
             </div>
           </div>
-          {selectedUserId && (
+          {selectedUser && (
             <div className="fixed bottom-0 right-0 w-1/3 h-1/2 bg-white shadow-lg rounded-tl-lg overflow-hidden">
               <Chat 
                 userId={(() => {
@@ -217,9 +222,9 @@ const Home = ({ setIsLoggedIn, isLoggedIn }: HomeType) => {
                   }
                   return null;
                 })()}
-                targetUserId={selectedUserId} 
-                targetUserName={users.find(user => user._id === selectedUserId)?.name || "Người dùng"}
-                onClose={() => setSelectedUserId(null)}
+                targetUserId={selectedUser._id}
+                targetUserName={selectedUser.name}
+                targetUserProfilePicture={selectedUser.profilePictures}
               />
             </div>
           )}
