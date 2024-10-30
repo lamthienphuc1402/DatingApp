@@ -1,52 +1,63 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import UserProfileEdit from './UserProfileEdit.tsx';
-import { useParams } from 'react-router-dom';
+import UserProfileEdit from './UserProfileEdit';
 
-interface User {
-  profilePictures: string[];
+interface UserData {
   _id: string;
   name: string;
   email: string;
-  bio?: string;
-  interests?: string[];
+  bio: string;
+  interests: string[];
+  profilePictures: string[];
 }
 
 const UserProfile = () => {
-  const { userId } = useParams();
-  const [user, setUser] = useState<User | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [user, setUser] = useState<UserData | null>(null);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const response = await axios.get(`http://localhost:3000/users/${userId}`);
-        setUser(response.data);
-      } catch (err) {
-        setError('Không thể lấy thông tin người dùng.');
-      }
-    };
-
-    fetchUserData();
-  }, [userId]);
-
-  const handleUpdate = () => {
-    setIsEditing(false);
-    fetchUserData();
+  const fetchUserData = async () => {
+    try {
+      const userData = JSON.parse(localStorage.getItem('user') || '{}');
+      console.log('User data từ localStorage:', userData);
+      
+      const response = await axios.get(`http://localhost:3000/users/${userData._id}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      console.log('Dữ liệu mới từ server:', response.data);
+      setUser(response.data);
+    } catch (err) {
+      console.error('Lỗi khi lấy thông tin người dùng:', err);
+      setError('Không thể lấy thông tin người dùng.');
+    }
   };
 
-  if (error) {
-    return <p className="text-red-500">{error}</p>;
-  }
+  useEffect(() => {
+    fetchUserData();
+  }, []);
+
+  const handleUpdate = async () => {
+    console.log('Bắt đầu cập nhật...');
+    try {
+      await fetchUserData();
+      console.log('Đã fetch dữ liệu mới');
+      setIsEditing(false);
+    } catch (err) {
+      console.error('Lỗi trong handleUpdate:', err);
+    }
+  };
 
   if (!user) {
-    return <p>Đang tải thông tin người dùng...</p>;
+    return <div>Đang tải...</div>;
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-400 via-pink-500 to-red-500 flex items-center justify-center p-4">
       <div className="bg-white bg-opacity-90 rounded-3xl shadow-2xl p-8 max-w-2xl w-full">
+        {error && <p className="text-red-500 mb-4 text-center">{error}</p>}
         {isEditing ? (
           <UserProfileEdit userId={user._id} onUpdate={handleUpdate} />
         ) : (
@@ -110,6 +121,3 @@ const UserProfile = () => {
 };
 
 export default UserProfile;
-function fetchUserData() {
-  throw new Error('Function not implemented.');
-}

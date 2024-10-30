@@ -143,8 +143,10 @@ export class UserController {
   async updateUser(
     @Param('userId') userId: string,
     @Body() updateUserDto: UpdateUserDto,
+    @UploadedFile() file,
+    @Request() req,
   ) {
-    return this.userService.updateUser(userId, updateUserDto);
+    return this.userService.updateUser(userId, updateUserDto, file);
   }
 
   @Get(':id/matches')

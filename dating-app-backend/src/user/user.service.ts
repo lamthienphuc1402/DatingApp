@@ -254,12 +254,25 @@ export class UserService {
   async updateUser(
     userId: string,
     updateUserDto: UpdateUserDto,
+    file: any,
   ): Promise<UserDocument> {
     const user = await this.userModel.findById(userId);
     if (!user) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
+    let stringUrls = [];
 
+    if (file) {
+      const result = await this.cloudinaryService.uploadFile(file);
+      // stringUrls = await Promise.all(
+      //   data.map(async (profilePicture) => {
+      //     const result =
+      //       await this.cloudinaryService.uploadFile(profilePicture);
+      //     return result;
+      //   }),
+      // );
+      stringUrls = [result.url];
+    }
     // Cập nhật tên nếu có
     if (updateUserDto.name) {
       user.name = updateUserDto.name;
@@ -282,7 +295,7 @@ export class UserService {
 
     // Cập nhật ảnh cá nhân nếu có
     if (updateUserDto.profilePictures) {
-      user.profilePictures = updateUserDto.profilePictures; // Cập nhật danh sách ảnh cá nhân
+      user.profilePictures = stringUrls; // Cập nhật danh sách ảnh cá nhân
     }
 
     return user.save(); // Lưu thay đổi vào cơ sở dữ liệu

@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { v4 as uuidv4 } from 'uuid';
 
 interface UserData {
   name: string;
@@ -11,7 +9,7 @@ interface UserData {
   profilePictures: string[];
 }
 
-const UserProfileEdit = ({ userId, onUpdate }) => {
+const UserProfileEdit = ({ userId, onUpdate }: { userId: string; onUpdate: () => void }) => {
   const [userData, setUserData] = useState<UserData>({
     name: '',
     email: '',
@@ -26,7 +24,11 @@ const UserProfileEdit = ({ userId, onUpdate }) => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const response = await axios.get(`http://localhost:3000/users/${userId}`);
+        const response = await axios.get(`http://localhost:3000/users/${userId}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
         setUserData({
           name: response.data.name,
           email: response.data.email,
@@ -42,7 +44,7 @@ const UserProfileEdit = ({ userId, onUpdate }) => {
     fetchUserData();
   }, [userId]);
 
-  const handleChange = (e) => {
+  const handleChange = (e: { target: { name: any; value: any; }; }) => {
     const { name, value } = e.target;
     setUserData((prevData) => ({ ...prevData, [name]: value }));
   };
@@ -57,25 +59,72 @@ const UserProfileEdit = ({ userId, onUpdate }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      const formData = new FormData();
-      formData.append('name', userData.name);
-      formData.append('email', userData.email);
-      formData.append('bio', userData.bio);
-      formData.append('interests', userData.interests.split(',').map(interest => interest.trim()).toString());
-      
-      newProfilePictures.forEach((file) => {
-        formData.append('profilePictures', file);
-      });
+    setError('');
 
-      await axios.put(`http://localhost:3000/users/${userId}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      onUpdate();
-    } catch (err) {
-      setError('Cập nhật thông tin không thành công.');
+    try {
+      const updateData = {
+        name: userData.name,
+        email: userData.email,
+        bio: userData.bio || '',
+        interests: userData.interests
+          .split(',')
+          .map(interest => interest.trim())
+          .filter(interest => interest.length > 0)
+      };
+
+      console.log('Dữ liệu gửi đi:', updateData);
+
+      if (newProfilePictures.length > 0) {
+        const formData = new FormData();
+        Object.keys(updateData).forEach(key => {
+          if (key === 'interests') {
+            formData.append(key, JSON.stringify(updateData[key]));
+          } else {
+            formData.append(key, updateData[key]);
+          }
+        });
+
+        newProfilePictures.forEach((file) => {
+          formData.append('profilePictures', file);
+        });
+
+        const response = await axios.put(
+          `http://localhost:3000/users/${userId}`,
+          formData,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          }
+        );
+        console.log('Phản hồi (với ảnh):', response.data);
+        if (response.status === 200) {
+          localStorage.setItem('user', JSON.stringify(response.data));
+          onUpdate();
+        }
+      } else {
+        const response = await axios.put(
+          `http://localhost:3000/users/${userId}`,
+          updateData,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          }
+        );
+        console.log('Phản hồi (không có ảnh):', response.data);
+        if (response.status === 200) {
+          localStorage.setItem('user', JSON.stringify(response.data));
+          onUpdate();
+        }
+      }
+    } catch (err: any) {
+      console.error('Chi tiết lỗi:', err);
+      console.error('Response data:', err.response?.data);
+      console.error('Response status:', err.response?.status);
+      setError(err.response?.data?.message || 'Cập nhật thông tin không thành công.');
     }
   };
 

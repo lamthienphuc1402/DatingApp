@@ -25,5 +25,5 @@ export class UpdateUserDto {
     @ApiProperty({ description: 'Danh sách URL của ảnh cá nhân', required: false })
     @IsOptional()
     @IsArray()
-    profilePictures?: string[]; // Thêm trường profilePictures
+    profilePictures?: any; // Thêm trường profilePictures
 }

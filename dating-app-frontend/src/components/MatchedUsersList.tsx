@@ -82,6 +82,7 @@ const MatchedUsersList = () => {
               targetUserId={selectedUser._id}
               targetUserName={selectedUser.name}
               targetUserProfilePicture={selectedUser.profilePictures}
+              targetUserIsOnline={selectedUser.isOnline}
               onBack={handleBackToList}
             />
           </div>
