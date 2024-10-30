@@ -60,7 +60,7 @@ function App() {
               checkLogin ? (
                 <Login setIsLoggedIn={setIsLoggedIn} setUserId={setUserId} />
               ) : (
-                <UserProfile />
+                <UserProfile setIsLoggedIn={setIsLoggedIn} />
               )
             }
           />

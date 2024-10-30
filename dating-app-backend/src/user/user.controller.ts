@@ -134,6 +134,7 @@ export class UserController {
   }
 
   @Put(':userId')
+  @UseInterceptors(FileInterceptor('profilePictures'))
   @ApiOperation({ summary: 'Cập nhật thông tin người dùng' })
   @ApiResponse({
     status: 200,

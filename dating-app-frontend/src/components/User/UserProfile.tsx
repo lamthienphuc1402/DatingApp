@@ -11,10 +11,11 @@ interface UserData {
   profilePictures: string[];
 }
 
-const UserProfile = () => {
+const UserProfile = ({setIsLoggedIn}: any) => {
   const [isEditing, setIsEditing] = useState(false);
   const [user, setUser] = useState<UserData | null>(null);
   const [error, setError] = useState('');
+
 
   const fetchUserData = async () => {
     try {
@@ -29,6 +30,7 @@ const UserProfile = () => {
       
       console.log('Dữ liệu mới từ server:', response.data);
       setUser(response.data);
+      setIsLoggedIn(true);
     } catch (err) {
       console.error('Lỗi khi lấy thông tin người dùng:', err);
       setError('Không thể lấy thông tin người dùng.');

@@ -260,10 +260,11 @@ export class UserService {
     if (!user) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
-    let stringUrls = [];
+
 
     if (file) {
       const result = await this.cloudinaryService.uploadFile(file);
+      console.log("Cloudinary update: " + result);
       // stringUrls = await Promise.all(
       //   data.map(async (profilePicture) => {
       //     const result =
@@ -271,7 +272,7 @@ export class UserService {
       //     return result;
       //   }),
       // );
-      stringUrls = [result.url];
+      user.profilePictures = [result.url];
     }
     // Cập nhật tên nếu có
     if (updateUserDto.name) {
@@ -293,10 +294,8 @@ export class UserService {
       user.bio = updateUserDto.bio; // Cập nhật thông tin tiểu sử
     }
 
-    // Cập nhật ảnh cá nhân nếu có
-    if (updateUserDto.profilePictures) {
-      user.profilePictures = stringUrls; // Cập nhật danh sách ảnh cá nhân
-    }
+
+
 
     return user.save(); // Lưu thay đổi vào cơ sở dữ liệu
   }
