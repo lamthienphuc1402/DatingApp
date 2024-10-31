@@ -5,30 +5,31 @@ import {
     OnGatewayConnection,
     OnGatewayDisconnect,
 } from '@nestjs/websockets';
-import { Server } from 'socket.io';
-import { ChatService } from './chat.service';
-import { SendMessageDto } from './dto/send-message.dto';
-import { UserService } from '../user/user.service'; // Nhập UserService
+import {Server} from 'socket.io';
+import {ChatService} from './chat.service';
+import {SendMessageDto} from './dto/send-message.dto';
+import {UserService} from '../user/user.service'; // Nhập UserService
 
-@WebSocketGateway({ cors: true })
+@WebSocketGateway({cors: true})
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @WebSocketServer() server: Server;
 
     constructor(
         private readonly chatService: ChatService,
         private readonly userService: UserService, // Thêm UserService vào constructor
-    ) {}
+    ) {
+    }
 
     handleConnection(client: any) {
         const userId = this.getUserIdFromClient(client);
         this.userService.setUserOnline(userId, true); // Cập nhật trạng thái online
-        this.server.emit('userStatus', { userId, status: 'online' }); // Thông báo cho tất cả client
+        this.server.emit('userStatus', {userId, status: 'online'}); // Thông báo cho tất cả client
     }
 
     handleDisconnect(client: any) {
         const userId = this.getUserIdFromClient(client);
         this.userService.setUserOnline(userId, false); // Cập nhật trạng thái offline
-        this.server.emit('userStatus', { userId, status: 'offline' }); // Thông báo cho tất cả client
+        this.server.emit('userStatus', {userId, status: 'offline'}); // Thông báo cho tất cả client
     }
 
     @SubscribeMessage('sendMessage')
@@ -41,7 +42,40 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
             if (error instanceof Error) {
                 message = error.message; // Lấy thông báo lỗi nếu error là một instance của Error
             }
-            client.emit('error', { message }); // Gửi thông báo lỗi cho client
+            client.emit('error', {message}); // Gửi thông báo lỗi cho client
+        }
+    }
+
+    @SubscribeMessage('sendLike')
+    async handleMatch(client: any, payload: { currentUserId: string, targetUserId: string, approveStatus: string }) {
+        try {
+            console.log("called socket");
+            console.log(payload.targetUserId);
+            const result = {
+                fromUserId: payload.currentUserId,
+                targetUserId: payload.targetUserId,
+                status: payload.approveStatus
+            }
+            console.log(JSON.stringify(result));
+            this.server.emit('matchApprove', JSON.stringify(result));
+            if (payload.approveStatus === "success") {
+                console.log("success")
+                Promise.all(
+                    [await this.userService.setMatch(payload.currentUserId, payload.targetUserId),
+                        await this.userService.setMatch(payload.targetUserId, payload.currentUserId)]
+                )
+                const matchMessage = {
+                    fromUserId: payload.currentUserId,
+                    targetUserId: payload.targetUserId,
+                    msg: "2 bạn đã match than công"
+                }
+                this.server.emit('matchStatus', JSON.stringify(matchMessage));
+                return;
+            }
+            return;
+        } catch (error) {
+
+
         }
     }
 
@@ -55,12 +89,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
             if (error instanceof Error) {
                 message = error.message; // Lấy thông báo lỗi nếu error là một instance của Error
             }
-            client.emit('error', { message }); // Gửi thông báo lỗi cho client
+            client.emit('error', {message}); // Gửi thông báo lỗi cho client
         }
     }
 
     private getUserIdFromClient(client: any): string {
         // Giả sử bạn lưu userId trong client handshake hoặc token
+
         return client.handshake.query.userId; // Lấy userId từ query params
     }
 }

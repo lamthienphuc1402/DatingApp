@@ -62,8 +62,8 @@ export class UpdateUserDto {
     @IsString()
     genderPreference?: 'male' | 'female' | 'both';
 
-    @ApiProperty({ description: 'Danh sách URL của ảnh cũ', required: false })
+    @ApiProperty({ description: '', required: false })
     @IsOptional()
     @IsArray()
-    existingPictures?: string[];
+    indexes?: string[];
 }

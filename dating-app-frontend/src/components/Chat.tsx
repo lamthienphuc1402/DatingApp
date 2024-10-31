@@ -173,7 +173,7 @@ const Chat: React.FC<ChatProps> = ({
       </div>
 
       {/* Input Container */}
-      <div className="p-4 border-t border-gray-200 bg-white">
+      <div className="p-4 border-t border-gray-200 bg-white text-black">
         <form onSubmit={handleSendMessage} className="flex gap-2">
           <input
             type="text"

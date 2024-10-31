@@ -32,7 +32,7 @@ const UserProfileEdit = ({userId, onUpdate}: { userId: string; onUpdate: () => v
     });
     const [error, setError] = useState('');
     const [newProfilePictures, setNewProfilePictures] = useState<File[]>([]);
-    const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+    const [previewUrls, setPreviewUrls] = useState<string[]>(userData.profilePictures);
 
     const edit = useEditProfile(userId);
 
@@ -90,22 +90,16 @@ const UserProfileEdit = ({userId, onUpdate}: { userId: string; onUpdate: () => v
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const formData = new FormData();
-        
+        console.log("check images array");
+        console.log(newProfilePictures);
         // Thêm các ảnh vào formData theo thứ tự
         newProfilePictures.forEach((file, index) => {
+            // Đặt tên file để giữ thứ tự
             if (file) {
-                // Đặt tên file để giữ thứ tự
                 formData.append(`profilePictures`, file);
+                formData.append(`indexes`, index.toString());
             }
         });
-
-        // Thêm mảng các URL ảnh cũ vào formData
-        userData.profilePictures.forEach((url, index) => {
-            if (!newProfilePictures[index]) {
-                formData.append('existingPictures', url);
-            }
-        });
-
         // Thêm các thông tin khác
         formData.append("name", userData.name);
         formData.append("email", userData.email);
@@ -118,12 +112,14 @@ const UserProfileEdit = ({userId, onUpdate}: { userId: string; onUpdate: () => v
         formData.append("gender", userData.gender);
         formData.append("genderPreference", userData.genderPreference);
 
+
         await edit.mutateAsync(formData);
     };
 
     const removePreviewImage = (index: number) => {
-        setPreviewUrls(prev => prev.filter((_, i) => i !== index));
-        setNewProfilePictures(prev => prev.filter((_, i) => i !== index));
+        console.log(previewUrls)
+        setPreviewUrls(previewUrls.filter((_, i) => i !== index));
+        setNewProfilePictures(newProfilePictures.filter((_, i) => i !== index));
     };
 
     return (
@@ -134,7 +130,7 @@ const UserProfileEdit = ({userId, onUpdate}: { userId: string; onUpdate: () => v
                         <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
                             Cập nhật thông tin
                         </h2>
-                        <button 
+                        <button
                             onClick={() => onUpdate()}
                             className="text-gray-600 hover:text-gray-800 transition-colors"
                         >
@@ -154,7 +150,7 @@ const UserProfileEdit = ({userId, onUpdate}: { userId: string; onUpdate: () => v
                             <h3 className="text-xl font-semibold text-purple-600 border-b border-purple-200 pb-2">
                                 <i className="fas fa-images mr-2"></i>Ảnh của bạn
                             </h3>
-                            
+
                             <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
                                 {/* Avatar slot - always first image */}
                                 <div className="relative group col-span-1">
@@ -163,8 +159,10 @@ const UserProfileEdit = ({userId, onUpdate}: { userId: string; onUpdate: () => v
                                         alt="Avatar"
                                         className="w-full h-40 object-cover rounded-lg border-4 border-purple-500 transition-all duration-300 group-hover:border-pink-500"
                                     />
-                                    <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                        <label htmlFor="profile-picture" className="cursor-pointer text-white text-sm flex flex-col items-center space-y-2">
+                                    <div
+                                        className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                        <label htmlFor="profile-picture"
+                                               className="cursor-pointer text-white text-sm flex flex-col items-center space-y-2">
                                             <i className="fas fa-user-circle text-2xl"></i>
                                             <span>Ảnh đại diện</span>
                                         </label>
@@ -179,14 +177,17 @@ const UserProfileEdit = ({userId, onUpdate}: { userId: string; onUpdate: () => v
                                             alt={`Photo ${index + 2}`}
                                             className="w-full h-40 object-cover rounded-lg border-2 border-gray-300 transition-all duration-300 group-hover:border-purple-500"
                                         />
-                                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                            <label htmlFor={`additional-photo-${index}`} className="cursor-pointer text-white text-sm flex flex-col items-center space-y-2">
+                                        <div
+                                            className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                            <label htmlFor={`additional-photo-${index}`}
+                                                   className="cursor-pointer text-white text-sm flex flex-col items-center space-y-2">
                                                 <i className="fas fa-plus text-2xl"></i>
                                                 <span>Thêm ảnh</span>
                                             </label>
                                         </div>
                                         {(previewUrls[index + 1] || userData.profilePictures[index + 1]) && (
                                             <button
+                                                type="button"
                                                 onClick={() => removePreviewImage(index + 1)}
                                                 className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                                             >
@@ -224,7 +225,7 @@ const UserProfileEdit = ({userId, onUpdate}: { userId: string; onUpdate: () => v
                                 <h3 className="text-xl font-semibold text-purple-600 border-b border-purple-200 pb-2">
                                     <i className="fas fa-user-circle mr-2"></i>Thông tin cơ bản
                                 </h3>
-                                
+
                                 <div className="form-group">
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         <i className="fas fa-signature mr-2 text-purple-500"></i>Tên
@@ -297,7 +298,7 @@ const UserProfileEdit = ({userId, onUpdate}: { userId: string; onUpdate: () => v
                                 <h3 className="text-xl font-semibold text-purple-600 border-b border-purple-200 pb-2">
                                     <i className="fas fa-heart mr-2"></i>Thông tin bổ sung
                                 </h3>
-                                
+
                                 <div className="form-group">
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         <i className="fas fa-book-open mr-2 text-purple-500"></i>Tiểu sử
