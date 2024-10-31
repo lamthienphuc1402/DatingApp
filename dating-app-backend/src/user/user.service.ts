@@ -251,54 +251,49 @@ export class UserService {
     return this.userModel.find({ _id: { $in: user.likedBy } }).exec();
   }
 
-  async updateUser(
-    userId: string,
-    updateUserDto: UpdateUserDto,
-    file: any,
-  ): Promise<UserDocument> {
+  async updateUser(userId: string, updateUserDto: UpdateUserDto, files: Array<Express.Multer.File>): Promise<User> {
     const user = await this.userModel.findById(userId);
     if (!user) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
 
+    let finalPictureUrls = [];
 
-    if (file) {
-      const result = await this.cloudinaryService.uploadFile(file);
-      console.log("Cloudinary update: " + result);
-      // stringUrls = await Promise.all(
-      //   data.map(async (profilePicture) => {
-      //     const result =
-      //       await this.cloudinaryService.uploadFile(profilePicture);
-      //     return result;
-      //   }),
-      // );
-      user.profilePictures = [result.url];
-    }
-    // Cập nhật tên nếu có
-    if (updateUserDto.name) {
-      user.name = updateUserDto.name;
+    // Xử lý ảnh mới
+    if (files && files.length > 0) {
+      const newPictureUrls = await Promise.all(
+        files.map(async (file) => {
+          const result = await this.cloudinaryService.uploadFile(file);
+          return result.url;
+        })
+      );
+      finalPictureUrls = [...newPictureUrls];
     }
 
-    // Cập nhật mật khẩu nếu có
-    if (updateUserDto.password) {
-      user.password = await bcrypt.hash(updateUserDto.password, 10); // Băm mật khẩu mới
+    // Thêm các URL ảnh cũ vào mảng cuối cùng
+    const existingPictures = updateUserDto.existingPictures || [];
+    if (Array.isArray(existingPictures)) {
+      finalPictureUrls = [...finalPictureUrls, ...existingPictures];
     }
 
-    // Cập nhật sở thích nếu có
-    if (updateUserDto.interests) {
-      user.interests = updateUserDto.interests; // Cập nhật danh sách sở thích
-    }
+    // Cập nhật mảng ảnh trong user
+    user.profilePictures = finalPictureUrls;
 
-    // Cập nhật bio nếu có
-    if (updateUserDto.bio) {
-      user.bio = updateUserDto.bio; // Cập nhật thông tin tiểu sử
-    }
+    // Cập nhật các trường thông tin khác
+    if (updateUserDto.age) user.age = updateUserDto.age;
+    if (updateUserDto.zodiacSign) user.zodiacSign = updateUserDto.zodiacSign;
+    if (updateUserDto.education) user.education = updateUserDto.education;
+    if (updateUserDto.hobbies) user.hobbies = updateUserDto.hobbies;
+    if (updateUserDto.gender) user.gender = updateUserDto.gender;
+    if (updateUserDto.genderPreference) user.genderPreference = updateUserDto.genderPreference;
+    if (updateUserDto.name) user.name = updateUserDto.name;
+    if (updateUserDto.email) user.email = updateUserDto.email;
+    if (updateUserDto.bio) user.bio = updateUserDto.bio;
+    if (updateUserDto.interests) user.interests = updateUserDto.interests;
 
-
-
-
-    return user.save(); // Lưu thay đổi vào cơ sở dữ liệu
+    return await user.save();
   }
+
   async setUserOnline(
     userId: string,
     isOnline: boolean,
@@ -324,5 +319,30 @@ export class UserService {
 
     // Lấy danh sách người dùng đã match với người dùng hiện tại
     return this.userModel.find({ _id: { $in: user.matchedUsers } }).exec();
+  }
+
+  // Thêm phương thức tìm kiếm người dùng phù hợp theo giới tính
+  async findMatchingUsers(userId: string): Promise<User[]> {
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+
+    const query: any = {
+      _id: { $ne: userId },
+    };
+
+    // Lọc theo giới tính preference
+    if (user.genderPreference !== 'both') {
+      query.gender = user.genderPreference;
+    }
+
+    // Lọc những người có preference phù hợp với giới tính của user
+    query.$or = [
+      { genderPreference: user.gender },
+      { genderPreference: 'both' }
+    ];
+
+    return await this.userModel.find(query);
   }
 }

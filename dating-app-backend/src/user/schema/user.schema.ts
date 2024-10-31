@@ -48,9 +48,41 @@ export class User {
 
     @Prop({ type: [String], default: [] }) // Danh sách URL của ảnh cá nhân
     profilePictures: string[];
-    
+
     @Prop({ default: false }) // Trạng thái hoạt động
     isOnline: boolean;
+    // Thêm các trường mới
+    @Prop({ min: 18, max: 100 })
+    age: number;
+
+    @Prop({
+        enum: [
+            'Bạch Dương', 'Kim Ngưu', 'Song Tử', 'Cự Giải',
+            'Sư Tử', 'Xử Nữ', 'Thiên Bình', 'Bọ Cạp',
+            'Nhân Mã', 'Ma Kết', 'Bảo Bình', 'Song Ngư'
+        ]
+    })
+    zodiacSign: string;
+
+    @Prop()
+    education: string;
+
+    @Prop()
+    hobbies: string;
+
+    @Prop({
+        required: true,
+        enum: ['male', 'female', 'other'],
+        default: 'other'
+    })
+    gender: string;
+
+    @Prop({
+        required: true,
+        enum: ['male', 'female', 'both'],
+        default: 'both'
+    })
+    genderPreference: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

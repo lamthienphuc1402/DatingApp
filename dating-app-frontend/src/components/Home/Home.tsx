@@ -1,7 +1,7 @@
 import { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Chat from "../Chat";
-import MatchedUsersList from "../MatchedUsersList";
+import UserLists from "../UserLists";
 import { SocketContext } from "../../SocketContext";
 import { io } from "socket.io-client";
 
@@ -29,6 +29,18 @@ const Home = ({ setIsLoggedIn, isLoggedIn }: HomeType) => {
   const { socket, setCurrentSocket }: any = useContext(SocketContext);
 
   const navigate = useNavigate();
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const usersPerPage = 6;
+
+  const indexOfLastUser = currentPage * usersPerPage;
+  const indexOfFirstUser = indexOfLastUser - usersPerPage;
+  const currentUsers = users.slice(indexOfFirstUser, indexOfLastUser);
+  const totalPages = Math.ceil(users.length / usersPerPage);
+
+  const handlePageChange = (pageNumber: number) => {
+    setCurrentPage(pageNumber);
+  };
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -136,7 +148,7 @@ const Home = ({ setIsLoggedIn, isLoggedIn }: HomeType) => {
       {isLoggedIn ? (
         <>
           <div className="w-1/3 bg-white p-4 overflow-y-auto">
-            <MatchedUsersList
+            <UserLists
               refresh={refresh}
               onSelectUser={handleSelectUser}
             />
@@ -146,7 +158,7 @@ const Home = ({ setIsLoggedIn, isLoggedIn }: HomeType) => {
               Danh sách người dùng gần đây
             </h1>
             <div className="grid grid-cols-3 gap-6">
-              {users.map((user) => (
+              {currentUsers.map((user) => (
                 <div
                   key={user._id}
                   onClick={() => setSelectedProfile(user)}
@@ -191,6 +203,22 @@ const Home = ({ setIsLoggedIn, isLoggedIn }: HomeType) => {
                 </div>
               ))}
             </div>
+
+            <div className="flex justify-center mt-6 gap-2">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  className={`px-4 py-2 rounded-lg ${
+                    currentPage === page
+                      ? 'bg-gray-800 text-white'
+                      : 'bg-white text-pink-500 hover:bg-pink-100'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Modal hiển thị thông tin chi tiết */}
@@ -214,7 +242,7 @@ const Home = ({ setIsLoggedIn, isLoggedIn }: HomeType) => {
                     alt={selectedProfile.name}
                     className="w-48 h-48 object-cover rounded-full mx-auto mb-4 border-4 border-pink-200"
                   />
-                  <h2 className="text-2xl font-bold mb-2">{selectedProfile.name}</h2>
+                  <h2 className="text-2xl font-bold mb-2 text-black">{selectedProfile.name}</h2>
                   {selectedProfile.bio && (
                     <p className="text-gray-600 mb-4">{selectedProfile.bio}</p>
                   )}

@@ -45,5 +45,29 @@ export class CreateUserDto {
   })
   @IsOptional()
   @IsArray()
-  profilePictures?: any; // Thêm trường profilePictures
+  profilePictures?: any;
+
+  @ApiProperty({ description: 'Tuổi của người dùng', required: false })
+  @IsNumber()
+  age?: number;
+
+  @ApiProperty({ description: 'Dấu hiệu của người dùng', required: false })
+  @IsString()
+  zodiacSign?: string;
+
+  @ApiProperty({ description: 'Trình độ học vấn của người dùng', required: false })
+  @IsString()
+  education?: string;
+
+  @ApiProperty({ description: 'Sở thích của người dùng', required: false })
+  @IsString()
+  hobbies?: string;
+
+  @ApiProperty({ description: 'Giới tính của người dùng', required: true })
+  @IsString()
+  gender: 'male' | 'female' | 'other';
+
+  @ApiProperty({ description: 'Sở thích giới tính của người dùng', required: true })
+  @IsString()
+  genderPreference: 'male' | 'female' | 'both';
 }

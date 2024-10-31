@@ -10,6 +10,7 @@ import {
   Request,
   UseInterceptors,
   UploadedFile,
+  UploadedFiles,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -19,7 +20,7 @@ import { VerifyUserDto } from './dto/verify-user.dto'; // Nhập VerifyUserDto
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { LikeUserDto } from './dto/like-user.dto'; // Nhập LikeUserDto
 import { UpdateUserDto } from './dto/update-user.dto'; // Nhập DTO mới
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 
 @ApiTags('users')
 @Controller('users')
@@ -134,7 +135,7 @@ export class UserController {
   }
 
   @Put(':userId')
-  @UseInterceptors(FileInterceptor('profilePictures'))
+  @UseInterceptors(FilesInterceptor('profilePictures', 6))
   @ApiOperation({ summary: 'Cập nhật thông tin người dùng' })
   @ApiResponse({
     status: 200,
@@ -144,14 +145,20 @@ export class UserController {
   async updateUser(
     @Param('userId') userId: string,
     @Body() updateUserDto: UpdateUserDto,
-    @UploadedFile() file,
+    @UploadedFiles() files: Array<Express.Multer.File>,
     @Request() req,
   ) {
-    return this.userService.updateUser(userId, updateUserDto, file);
+    return this.userService.updateUser(userId, updateUserDto, files);
   }
 
   @Get(':id/matches')
   async getMatchedUsers(@Param('id') id: string) {
     return this.userService.getMatchedUsers(id);
+  }
+
+  @Get('matching/:userId')
+  @ApiOperation({ summary: 'Lấy danh sách người dùng phù hợp theo giới tính' })
+  async getMatchingUsers(@Param('userId') userId: string) {
+    return this.userService.findMatchingUsers(userId);
   }
 }
