@@ -180,8 +180,8 @@ const Home = ({setIsLoggedIn, isLoggedIn}: HomeType) => {
 
     return (
         <>
-            <ApproveNotice fromUser={currentFromId} toUser={currentMatchId} />
-            <ApproveModal socket={socket} fromUser={currentFromId} targetUser={currentMatchId} />
+             <ApproveNotice socket={socket} fromUser={currentFromId} toUser={currentMatchId} />
+            <ApproveModal  socket={socket} fromUser={currentFromId} targetUser={currentMatchId} /> 
             <div className="min-h-screen pt-16 bg-gradient-to-br from-purple-400 via-pink-500 to-red-500 flex">
                 {isLoggedIn ? (
                     <>

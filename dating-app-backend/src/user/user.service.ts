@@ -308,8 +308,11 @@ export class UserService {
 
         return this.userModel.findByIdAndUpdate(fromId, {
             $push: {
-                matchedUsers: toId
-            }
+                matchedUsers: toId,
+                likedBy: toId,
+                likedUsers: toId
+            },
+            
         })
     }
 

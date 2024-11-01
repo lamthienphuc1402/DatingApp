@@ -159,7 +159,7 @@ const UserProfile = ({setIsLoggedIn}: any) => {
                   <div className="space-y-3 md:space-y-4">
                     <div>
                       <p className="text-green-600">Thường làm gì lúc rảnh</p>
-                      <p className="text-lg text-green-800">{user.hobbies || 'Chưa cập nhật'}</p>
+                      <p className="text-lg font-medium text-green-800 capitalize">{user.hobbies || 'Chưa cập nhật'}</p>
                     </div>
                     <div>
                       <p className="text-green-600">Xu hướng tìm kiếm</p>

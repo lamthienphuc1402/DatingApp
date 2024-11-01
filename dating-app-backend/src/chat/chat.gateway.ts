@@ -70,6 +70,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
                     msg: "2 bạn đã match than công"
                 }
                 this.server.emit('matchStatus', JSON.stringify(matchMessage));
+                this.server.off('sendLike', () => {})
+                this.server.off('matchApprove', () => {})
+                this.server.off('matchStatus', () => {})
                 return;
             }
             return;

@@ -5,6 +5,7 @@ import {
   IsNumber,
   IsOptional,
   IsArray,
+  IsEnum,
 } from 'class-validator';
 import { ApiProperty, ApiHideProperty } from '@nestjs/swagger'; // Nhập ApiHideProperty
 
@@ -51,9 +52,20 @@ export class CreateUserDto {
   @IsNumber()
   age?: number;
 
-  @ApiProperty({ description: 'Dấu hiệu của người dùng', required: false })
-  @IsString()
-  zodiacSign?: string;
+  @ApiProperty({ 
+    description: 'Cung hoàng đạo của người dùng',
+    enum: [
+      'Bạch Dương', 'Kim Ngưu', 'Song Tử', 'Cự Giải',
+      'Sư Tử', 'Xử Nữ', 'Thiên Bình', 'Bọ Cạp',
+      'Nhân Mã', 'Ma Kết', 'Bảo Bình', 'Song Ngư'
+    ]
+  })
+  @IsEnum([
+    'Bạch Dương', 'Kim Ngưu', 'Song Tử', 'Cự Giải',
+    'Sư Tử', 'Xử Nữ', 'Thiên Bình', 'Bọ Cạp',
+    'Nhân Mã', 'Ma Kết', 'Bảo Bình', 'Song Ngư'
+  ])
+  zodiacSign: string;
 
   @ApiProperty({ description: 'Trình độ học vấn của người dùng', required: false })
   @IsString()

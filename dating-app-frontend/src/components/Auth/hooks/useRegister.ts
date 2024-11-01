@@ -1,3 +1,4 @@
+import { NavigateFunction } from "react-router-dom";
 import {useMutation} from "@tanstack/react-query";
 import axios from "axios";
 
@@ -16,6 +17,7 @@ const submitRegister = async (data: any) => {
 
 export const useSubmitRegister = (
     setError: React.Dispatch<React.SetStateAction<any>>,
+    navigate: NavigateFunction
 ) => {
     const {mutateAsync, data, error, isLoading, isSuccess} = useMutation({
         mutationKey: ["submitRegisterForm"],
@@ -25,12 +27,8 @@ export const useSubmitRegister = (
             return result.data;
         },
         onSuccess(data) {
-            console.log(data);
-            // setIsLoggedIn(true);
-            // setUserId(data.user._id);
-            // localStorage.setItem("token", data.token.refreshToken);
-            // localStorage.setItem("user", JSON.stringify(data.user));
-            // navigate("/");
+            alert("Đăng ký thành công! Vui lòng đăng nhập.");
+            navigate("/login");
         },
         onError(error: any) {
             console.log(error);
