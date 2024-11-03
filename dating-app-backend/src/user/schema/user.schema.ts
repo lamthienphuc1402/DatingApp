@@ -17,7 +17,7 @@ export class User {
     @Prop()
     bio: string;
 
-    @Prop()
+    @Prop({ type: [String], default: [] })
     interests: string[];
 
     @Prop() // Thêm trường cho mã xác thực

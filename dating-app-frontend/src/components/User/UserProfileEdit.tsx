@@ -16,6 +16,19 @@ interface UserData {
     genderPreference: 'male' | 'female' | 'both';
 }
 
+// Thêm interface cho Tag
+interface Tag {
+    id: string;
+    text: string;
+}
+
+// Thêm hàm kiểm tra trùng lặp (case insensitive)
+const isDuplicateTag = (newTag: string, existingTags: Tag[]) => {
+    return existingTags.some(tag => 
+        tag.text.toLowerCase() === newTag.toLowerCase()
+    );
+};
+
 const UserProfileEdit = ({userId, onUpdate}: { userId: string; onUpdate: () => void }) => {
     const [userData, setUserData] = useState<UserData>({
         name: '',
@@ -33,6 +46,8 @@ const UserProfileEdit = ({userId, onUpdate}: { userId: string; onUpdate: () => v
     const [error, setError] = useState('');
     const [newProfilePictures, setNewProfilePictures] = useState<File[]>([]);
     const [previewUrls, setPreviewUrls] = useState<string[]>(userData.profilePictures);
+    const [tags, setTags] = useState<Tag[]>([]);
+    const [inputValue, setInputValue] = useState('');
 
     const edit = useEditProfile(userId);
 
@@ -44,11 +59,31 @@ const UserProfileEdit = ({userId, onUpdate}: { userId: string; onUpdate: () => v
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
                     }
                 });
+                
+                // Chuyển đổi interests thành tags
+                let interestsArray = response.data.interests || [];
+                // Nếu interests[0] là string JSON, parse nó
+                if (interestsArray.length === 1 && typeof interestsArray[0] === 'string' && interestsArray[0].startsWith('[')) {
+                    try {
+                        interestsArray = JSON.parse(interestsArray[0]);
+                    } catch (e) {
+                        console.error('Error parsing interests:', e);
+                    }
+                }
+
+                // Loại bỏ các giá trị trùng lặp trước khi tạo tags
+                const uniqueInterests = [...new Set(interestsArray.map(i => i.toLowerCase()))];
+                const tagsFromInterests = uniqueInterests.map(interest => ({
+                    id: Math.random().toString(36).substr(2, 9),
+                    text: interest
+                }));
+
+                setTags(tagsFromInterests);
                 setUserData({
                     name: response.data.name,
                     email: response.data.email,
                     bio: response.data.bio || '',
-                    interests: response.data.interests.join(', ') || '',
+                    interests: response.data.interests.join(', '),
                     profilePictures: response.data.profilePictures || [],
                     age: response.data.age,
                     zodiacSign: response.data.zodiacSign,
@@ -90,6 +125,15 @@ const UserProfileEdit = ({userId, onUpdate}: { userId: string; onUpdate: () => v
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const formData = new FormData();
+        
+        // Lấy các giá trị unique từ tags
+        const uniqueInterests = [...new Set(tags.map(tag => tag.text))];
+        
+        // Gửi từng phần tử riêng biệt
+        uniqueInterests.forEach(interest => {
+            formData.append("interests[]", interest);
+        });
+
         console.log("check images array");
         console.log(newProfilePictures);
         // Thêm các ảnh vào formData theo thứ tự
@@ -103,7 +147,6 @@ const UserProfileEdit = ({userId, onUpdate}: { userId: string; onUpdate: () => v
         // Thêm các thông tin khác
         formData.append("name", userData.name);
         formData.append("email", userData.email);
-        formData.append("interests", userData.interests.split(",").toString());
         formData.append("bio", userData.bio);
         formData.append("age", userData.age.toString());
         formData.append("zodiacSign", userData.zodiacSign);
@@ -120,6 +163,35 @@ const UserProfileEdit = ({userId, onUpdate}: { userId: string; onUpdate: () => v
         console.log(previewUrls)
         setPreviewUrls(previewUrls.filter((_, i) => i !== index));
         setNewProfilePictures(newProfilePictures.filter((_, i) => i !== index));
+    };
+
+    // Thêm các handlers cho tags
+    const handleDeleteTag = (tagToDelete: Tag) => {
+        setTags(tags.filter(tag => tag.id !== tagToDelete.id));
+    };
+
+    // Sửa lại handler thêm tag
+    const handleAddTag = (value: string) => {
+        const trimmedValue = value.trim();
+        if (trimmedValue && !isDuplicateTag(trimmedValue, tags)) {
+            setTags([...tags, { 
+                id: Math.random().toString(36).substr(2, 9), 
+                text: trimmedValue 
+            }]);
+            setInputValue('');
+        }
+    };
+
+    // Handler cho input change
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        // Nếu người dùng nhập dấu phẩy
+        if (value.includes(',')) {
+            const newTag = value.replace(',', '');
+            handleAddTag(newTag);
+        } else {
+            setInputValue(value);
+        }
     };
 
     return (
@@ -345,14 +417,48 @@ const UserProfileEdit = ({userId, onUpdate}: { userId: string; onUpdate: () => v
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         <i className="fas fa-heart mr-2 text-purple-500"></i>Sở thích
                                     </label>
-                                    <input
-                                        type="text"
-                                        name="interests"
-                                        value={userData.interests}
-                                        onChange={handleChange}
-                                        className="w-full px-4 py-3 rounded-xl border border-purple-200 bg-white text-black focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300 hover:border-purple-400"
-                                        placeholder="Thể thao, âm nhạc, du lịch..."
-                                    />
+                                    <div className="flex flex-wrap gap-2 p-2 border border-purple-200 rounded-xl bg-white">
+                                        {/* Tags container */}
+                                        <div className="flex flex-wrap gap-2 w-full mb-2">
+                                            {tags.map(tag => (
+                                                <span
+                                                    key={tag.id}
+                                                    className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-100 text-purple-700"
+                                                >
+                                                    {tag.text}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDeleteTag(tag)}
+                                                        className="ml-2 focus:outline-none"
+                                                    >
+                                                        <i className="fas fa-times text-xs"></i>
+                                                    </button>
+                                                </span>
+                                            ))}
+                                        </div>
+                                        
+                                        {/* Input container - luôn nằm trên một dòng mới */}
+                                        <div className="flex items-center w-full min-h-[32px] bg-purple-50 rounded-xl p-1">
+                                            <input
+                                                type="text"
+                                                value={inputValue}
+                                                onChange={handleInputChange}
+                                                className="flex-1 outline-none bg-white rounded-xl"
+                                                placeholder={tags.length === 0 ? "Nhập sở thích..." : ""}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => handleAddTag(inputValue)}
+                                                className="ml-2 px-3 py-1 text-sm text-purple-600 hover:text-purple-800 transition-colors"
+                                                disabled={!inputValue.trim()}
+                                            >
+                                                <i className="fas fa-plus"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p className="text-sm text-gray-500 mt-1">
+                                        Nhập và nhấn nút thêm hoặc dùng dấu phẩy để thêm sở thích
+                                    </p>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
@@ -406,7 +512,7 @@ const UserProfileEdit = ({userId, onUpdate}: { userId: string; onUpdate: () => v
                                 className="px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 flex items-center space-x-2"
                             >
                                 <i className="fas fa-heart"></i>
-                                <span>Lưu thay đổi</span>
+                                <span>Lưu</span>
                             </button>
                         </div>
                     </form>

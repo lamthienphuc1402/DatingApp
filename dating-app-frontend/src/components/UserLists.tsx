@@ -355,13 +355,13 @@ const UserLists: React.FC<UserListsProps> = ({ refresh, onSelectUser }) => {
                               onClick={() => handleApproveMatch(selectedProfile._id)}
                               className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full hover:opacity-90 transition duration-300 shadow-md"
                             >
-                              Đồng ý
+                              <i className="fas fa-heart"></i> Đồng ý
                             </button>
                             <button
                               onClick={() => handleRejectMatch(selectedProfile._id)}
                               className="w-full py-3 bg-white text-gray-700 border border-gray-300 rounded-full hover:bg-gray-50 transition duration-300"
                             >
-                              Từ chối
+                              <i className="fas fa-times"></i> Từ chối
                             </button>
                           </div>
                         )}
