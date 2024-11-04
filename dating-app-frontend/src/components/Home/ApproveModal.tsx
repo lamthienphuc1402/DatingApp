@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-
+import { motion } from "framer-motion";
 
 const ApproveModal = ({ fromUser, targetUser, socket }: any) => {
   if(!fromUser || !targetUser || fromUser === JSON.parse(localStorage.getItem("user") || "")?._id) {
@@ -10,7 +10,8 @@ const ApproveModal = ({ fromUser, targetUser, socket }: any) => {
   }
     const [fromUserData, setFromUserData] = useState<any>();
     const [targetUserData, setTargetUserData] = useState<any>();
-    console.log("from user: " + fromUserData);
+    console.log("from user: ");
+    
     useEffect(() => {
   
       
@@ -64,42 +65,61 @@ const ApproveModal = ({ fromUser, targetUser, socket }: any) => {
 
   return (
     <dialog id="approveBox" className="p-6 rounded-lg shadow-xl bg-white">
-      <div className="text-center">
-        <div className="mb-4">
+      <motion.div 
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="text-center"
+      >
+        <motion.div 
+          className="mb-4"
+          whileHover={{ scale: 1.1 }}
+          transition={{ type: "spring", stiffness: 300 }}
+        >
           {fromUserData?.profilePictures && fromUserData?.profilePictures[0] ? (
             <img 
               src={fromUserData?.profilePictures[0]} 
               alt={fromUserData?.name}
-              className="w-24 h-24 mx-auto rounded-full object-cover"
+              className="w-32 h-32 mx-auto rounded-full object-cover border-4 border-pink-500"
             />
           ) : (
-            <div className="w-24 h-24 mx-auto bg-gray-200 rounded-full flex items-center justify-center">
+            <div className="w-32 h-32 mx-auto bg-gray-200 rounded-full flex items-center justify-center">
               <span className="text-2xl">{fromUserData?.name[0]}</span>
             </div>
           )}
-        </div>
-        <h3 className="text-xl font-medium text-gray-900 mb-2">{fromUserData?.name}</h3>
-        {fromUserData?.bio && (
-          <p className="text-sm text-gray-600 mb-4">{fromUserData?.bio}</p>
-        )}
-        <p className="text-sm text-gray-500 mb-4">
-          muốn match với bạn. Bạn có muốn chấp nhận không?
-        </p>
-        <div className="flex justify-center gap-2">
-          <button
-            onClick={handleReject}
-            className="px-4 py-2 bg-gray-500 text-white rounded-full hover:bg-gray-600 transition-colors"
-          >
-            Từ chối
-          </button>
-          <button
-            onClick={handleApprove}
-            className="px-4 py-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors"
-          >
-            Chấp nhận
-          </button>
-        </div>
-      </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          <h3 className="text-2xl font-bold text-gray-900 mb-2">{fromUserData?.name}</h3>
+          {fromUserData?.bio && (
+            <p className="text-lg text-gray-600 mb-4">{fromUserData?.bio}</p>
+          )}
+          <p className="text-lg text-gray-500 mb-6">
+            muốn match với bạn. Bạn có muốn chấp nhận không?
+          </p>
+          <div className="flex justify-center gap-4">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleReject}
+              className="px-6 py-3 bg-gray-500 text-white rounded-full hover:bg-gray-600 transition-colors shadow-lg"
+            >
+              Từ chối
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleApprove}
+              className="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full hover:from-pink-600 hover:to-purple-600 transition-colors shadow-lg"
+            >
+              Chấp nhận
+            </motion.button>
+          </div>
+        </motion.div>
+      </motion.div>
     </dialog>
   );
 };

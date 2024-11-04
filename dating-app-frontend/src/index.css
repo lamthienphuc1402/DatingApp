@@ -65,3 +65,10 @@ input:-webkit-autofill:focus {
   /*your box-shadow*/
   -webkit-text-fill-color: #333;
 }
+
+/* Thêm vào file CSS của bạn */
+@media (max-width: 768px) {
+  body.user-lists-open {
+    overflow: hidden;
+  }
+}

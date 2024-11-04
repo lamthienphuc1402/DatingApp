@@ -78,7 +78,7 @@ const UserProfileEdit = ({userId, onUpdate}: { userId: string; onUpdate: () => v
                     text: interest
                 }));
 
-                setTags(tagsFromInterests);
+                setTags(tagsFromInterests as Tag[]);
                 setUserData({
                     name: response.data.name,
                     email: response.data.email,

@@ -45,7 +45,7 @@ const Login = ({ setIsLoggedIn, setUserId }: LoginType) => {
           Đăng Nhập
         </h2>
         {error !== "" && (
-          <p className="text-red-500 mb-4 text-center">{error}</p>
+          <p className="text-red-500 mb-4 text-center">Sai tài khoản hoặc mật khẩu</p>
         )}
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
