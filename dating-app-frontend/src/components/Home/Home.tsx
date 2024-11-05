@@ -50,7 +50,7 @@ const Home = ({ setIsLoggedIn, isLoggedIn, showUserLists, setShowUserLists }: Ho
     const navigate = useNavigate();
 
     const [currentPage, setCurrentPage] = useState(1);
-    const usersPerPage = 6;
+    const usersPerPage = window.innerWidth > 1280 ? 8 : 6;
 
     const indexOfLastUser = currentPage * usersPerPage;
     const indexOfFirstUser = indexOfLastUser - usersPerPage;
@@ -232,7 +232,7 @@ const Home = ({ setIsLoggedIn, isLoggedIn, showUserLists, setShowUserLists }: Ho
                     <h1 className="text-2xl font-extrabold mb-6 text-gray-800 text-center bg-white p-4 rounded-lg shadow-lg">
                         Danh sách người dùng gần đây
                     </h1>
-                    <div className="grid grid-cols-3 gap-6">
+                    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 xl:gap-8">
                         {currentUsers.map((user) => (
                             <div
                                 key={user._id}

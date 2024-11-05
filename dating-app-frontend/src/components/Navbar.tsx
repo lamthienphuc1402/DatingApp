@@ -49,9 +49,9 @@ const Navbar = ({ isLoggedIn, setIsLoggedIn, setUserId, showUserLists, setShowUs
               </button>
               <button
                 onClick={() => setShowUserLists?.(!showUserLists)}
-                className="md:hidden bg-purple-500 px-4 py-2 rounded-full font-medium text-white transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-50"
+                className="md:hidden bg-pink-500 px-2 py-2 rounded-xl font-medium text-white transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-opacity-50"
               >
-                <i className={`fas ${showUserLists ? 'fa-times' : 'fa-comments'} text-xl`}></i>
+                <i className={`fas ${showUserLists ? 'fa-times' : 'fa-list-ul'} text-xl`}></i>
               </button>
             </>
           ) : (
