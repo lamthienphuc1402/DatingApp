@@ -18,6 +18,7 @@ interface User {
   hobbies: string;
   gender: 'male' | 'female' | 'other';
   genderPreference: 'male' | 'female' | 'both';
+  isOnline: boolean;
 }
 
 interface UserListsProps {
@@ -198,7 +199,7 @@ const UserLists: React.FC<UserListsProps> = ({ refresh, onSelectUser, onClose })
   return (
     <div className="bg-white rounded-lg shadow-md p-4 h-full overflow-y-auto scrollbar-custom">
       {/* Header với nút đóng cho mobile */}
-      <div className="flex justify-between items-center mb-4 md:hidden">
+      {/* <div className="flex justify-between items-center mb-4 md:hidden">
         <h2 className="text-xl font-bold text-gray-800">Tin nhắn</h2>
         <button
           onClick={onClose}
@@ -206,7 +207,7 @@ const UserLists: React.FC<UserListsProps> = ({ refresh, onSelectUser, onClose })
         >
           <i className="fas fa-times text-xl"></i>
         </button>
-      </div>
+      </div> */}
       
       {showNotice && (
         <ApproveNotice
@@ -216,7 +217,7 @@ const UserLists: React.FC<UserListsProps> = ({ refresh, onSelectUser, onClose })
         />
       )}
       {selectedUser ? (
-        <div className="h-[85vh]">
+        <div className="h-full">
           <Chat
             userId={JSON.parse(localStorage.getItem("user") || "{}")._id}
             targetUserId={selectedUser._id}

@@ -15,6 +15,7 @@ import UserProfile from "./components/User/UserProfile";
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userId, setUserId] = useState("");
+  const [showUserLists, setShowUserLists] = useState(false);
 
   const checkLogin =
     Object.keys(JSON.parse(localStorage.getItem("user")) || {}).length === 0;
@@ -25,6 +26,8 @@ function App() {
         isLoggedIn={isLoggedIn}
         setIsLoggedIn={setIsLoggedIn}
         setUserId={setUserId}
+        showUserLists={showUserLists}
+        setShowUserLists={setShowUserLists}
       />
       <main>
         <Routes>
@@ -38,6 +41,8 @@ function App() {
                   isLoggedIn={isLoggedIn}
                   setIsLoggedIn={setIsLoggedIn}
                   setUserId={setUserId}
+                  showUserLists={showUserLists}
+                  setShowUserLists={setShowUserLists}
                 />
               )
             }

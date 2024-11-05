@@ -31,9 +31,11 @@ const InfoItem = ({ label, value }: { label: string; value: string | number | un
 export type HomeType = {
     setIsLoggedIn: React.Dispatch<React.SetStateAction<boolean>>;
     isLoggedIn: boolean;
+    showUserLists: boolean;
+    setShowUserLists: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
-const Home = ({ setIsLoggedIn, isLoggedIn }: HomeType) => {
+const Home = ({ setIsLoggedIn, isLoggedIn, showUserLists, setShowUserLists }: HomeType) => {
     const [users, setUsers] = useState<User[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [error, setError] = useState("");
@@ -190,8 +192,6 @@ const Home = ({ setIsLoggedIn, isLoggedIn }: HomeType) => {
         }
     };
 
-    const [showUserLists, setShowUserLists] = useState(false);
-
     useEffect(() => {
         if (showUserLists) {
             document.body.classList.add('user-lists-open');
@@ -209,14 +209,6 @@ const Home = ({ setIsLoggedIn, isLoggedIn }: HomeType) => {
             <ApproveNotice socket={socket} fromUserName={currentFromId} toUserName={currentMatchId} />
             <ApproveModal socket={socket} fromUser={currentFromId} targetUser={currentMatchId} />
             <div className="min-h-screen pt-16 bg-gradient-to-br from-purple-400 via-pink-500 to-red-500 flex relative">
-                {/* Toggle button cho mobile */}
-                <button
-                    onClick={() => setShowUserLists(!showUserLists)}
-                    className="fixed bottom-4 right-4 z-50 bg-white rounded-full p-3 shadow-lg md:hidden"
-                >
-                    <i className={`fas ${showUserLists ? 'fa-times' : 'fa-comments'} text-2xl text-pink-500`}></i>
-                </button>
-
                 {/* UserLists container với responsive classes */}
                 <div className={`
                     fixed md:relative

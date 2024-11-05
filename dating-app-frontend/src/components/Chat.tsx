@@ -107,7 +107,7 @@ const Chat: React.FC<ChatProps> = ({
   return (
     <div className="flex flex-col h-full bg-white rounded-lg shadow-lg">
       {/* Header */}
-      <div className="flex items-center p-4 bg-gradient-to-r from-purple-500 to-pink-500">
+      <div className="flex items-center p-4 bg-gradient-to-r from-purple-500 to-pink-500 rounded-t-lg">
         <button
           onClick={onBack}
           className="p-2 mr-3 text-white hover:bg-white/20 rounded-full transition duration-300"
@@ -173,7 +173,7 @@ const Chat: React.FC<ChatProps> = ({
       </div>
 
       {/* Input Container */}
-      <div className="p-4 border-t border-gray-200 bg-white text-black">
+      <div className="p-4 border-t border-gray-200 bg-white text-black rounded-b-lg">
         <form onSubmit={handleSendMessage} className="flex gap-2">
           <input
             type="text"
