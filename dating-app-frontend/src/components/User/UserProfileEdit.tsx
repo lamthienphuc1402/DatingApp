@@ -1,6 +1,7 @@
 import React, {useState, useEffect} from 'react';
 import axios from 'axios';
 import {useEditProfile} from "./hooks/useEditProfile.ts";
+import LocationSelector from '../LocationSelector';
 
 interface UserData {
     name: string;
@@ -14,6 +15,12 @@ interface UserData {
     hobbies: string;
     gender: 'male' | 'female' | 'other';
     genderPreference: 'male' | 'female' | 'both';
+    city?: string;
+    district?: string;
+    location?: {
+        type: string;
+        coordinates: number[];
+    };
 }
 
 // Thêm interface cho Tag
@@ -194,6 +201,10 @@ const UserProfileEdit = ({userId, onUpdate}: { userId: string; onUpdate: () => v
         }
     };
 
+    const handleLocationUpdate = (location: { type: string; coordinates: number[] }) => {
+        setUserData(prevData => ({ ...prevData, location }));
+    };
+
     return (
         <div className="min-h-screen">
             <div className="max-w-4xl mx-auto px-4">
@@ -362,6 +373,17 @@ const UserProfileEdit = ({userId, onUpdate}: { userId: string; onUpdate: () => v
                                         <option value="Bảo Bình">Bảo Bình</option>
                                         <option value="Song Ngư">Song Ngư</option>
                                     </select>
+                                </div>
+
+                                <div className="form-group">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        <i className="fas fa-map-marker-alt mr-2 text-purple-500"></i>Vị trí
+                                    </label>
+                                    <LocationSelector 
+                                        onLocationUpdate={handleLocationUpdate}
+                                        initialCity={userData?.city}
+                                        initialDistrict={userData?.district}
+                                    />
                                 </div>
                             </div>
 

@@ -6,6 +6,9 @@ import { SocketContext } from "../../SocketContext";
 import { io } from "socket.io-client";
 import ApproveModal from "./ApproveModal.tsx";
 import ApproveNotice from "./ApproveNotice.tsx";
+import LocationUpdateModal from "../LocationUpdateModal";
+import axios from "axios";
+import SearchSettings from "../Settings/SearchSettings.tsx";
 
 interface User {
     _id: string;
@@ -20,6 +23,13 @@ interface User {
     hobbies: string;
     gender: 'male' | 'female' | 'other';
     genderPreference: 'male' | 'female' | 'both';
+    city?: string;
+    district?: string;
+    location?: {
+        type: string;
+        coordinates: number[];
+    };
+    matchScore?: number;
 }
 const InfoItem = ({ label, value }: { label: string; value: string | number | undefined }) => (
     <div className="bg-gray-50 p-3 rounded-xl hover:bg-gray-100 transition duration-300">
@@ -33,6 +43,7 @@ export type HomeType = {
     isLoggedIn: boolean;
     showUserLists: boolean;
     setShowUserLists: React.Dispatch<React.SetStateAction<boolean>>;
+
 };
 
 const Home = ({ setIsLoggedIn, isLoggedIn, showUserLists, setShowUserLists }: HomeType) => {
@@ -46,6 +57,7 @@ const Home = ({ setIsLoggedIn, isLoggedIn, showUserLists, setShowUserLists }: Ho
     const [currentFromId, setCurrentFromId] = useState("")
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const { socket, setCurrentSocket }: any = useContext(SocketContext);
+    const [showSettings, setShowSettings] = useState(false);
 
     const navigate = useNavigate();
 
@@ -153,8 +165,11 @@ const Home = ({ setIsLoggedIn, isLoggedIn, showUserLists, setShowUserLists }: Ho
     //Chat
     const fetchNearbyUsers = async (userId: string) => {
         try {
+            const savedPrefs = localStorage.getItem('searchPreferences');
+            const preferences = savedPrefs ? JSON.parse(savedPrefs) : { searchDistance: 1000 };
+
             const response = await fetch(
-                `http://localhost:3000/users/nearby/${userId}?maxDistance=1000`,
+                `http://localhost:3000/users/nearby/${userId}?maxDistance=${preferences.searchDistance}`,
                 {
                     headers: {
                         Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -198,25 +213,43 @@ const Home = ({ setIsLoggedIn, isLoggedIn, showUserLists, setShowUserLists }: Ho
         } else {
             document.body.classList.remove('user-lists-open');
         }
-        
+
         return () => {
             document.body.classList.remove('user-lists-open');
         };
     }, [showUserLists]);
 
+    const [showLocationModal, setShowLocationModal] = useState(false);
+
+    useEffect(() => {
+        const checkUserLocation = async () => {
+            try {
+                const userData = JSON.parse(localStorage.getItem('user') || '{}');
+                const response = await axios.get(`http://localhost:3000/users/${userData._id}`);
+                if (!response.data.city || !response.data.district) {
+                    setShowLocationModal(true);
+                }
+            } catch (err) {
+                console.error('Lỗi khi kiểm tra vị trí:', err);
+            }
+        };
+        checkUserLocation();
+    }, []);
+
     return (
         <>
             <ApproveNotice socket={socket} fromUserName={currentFromId} toUserName={currentMatchId} />
             <ApproveModal socket={socket} fromUser={currentFromId} targetUser={currentMatchId} />
-            <div className="min-h-screen pt-16 bg-gradient-to-br from-purple-400 via-pink-500 to-red-500 flex relative">
+            <div className="min-h-screen pt-16 bg-gradient-to-br from-purple-400 via-pink-400 to-pink-600 flex relative">
                 {/* UserLists container với responsive classes */}
                 <div className={`
                     fixed md:relative
                     w-full md:w-1/3
                     h-[calc(100vh-4rem)] md:min-h-[calc(100vh-4rem)] 
                     bg-white
-                    transition-transform duration-300 ease-in-out
-                    ${showUserLists ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}
+                    transition-all duration-300 ease-in-out
+                    user-lists-sidebar
+                    ${showUserLists ? 'right-0' : '-right-full md:right-0'}
                     z-40 md:z-auto
                     overflow-hidden
                 `}>
@@ -229,9 +262,48 @@ const Home = ({ setIsLoggedIn, isLoggedIn, showUserLists, setShowUserLists }: Ho
 
                 {/* Main content */}
                 <div className="w-full md:w-2/3 p-4">
-                    <h1 className="text-2xl font-extrabold mb-6 text-gray-800 text-center bg-white p-4 rounded-lg shadow-lg">
-                        Danh sách người dùng gần đây
-                    </h1>
+                    {/* Header section with improved layout */}
+                    <div className="bg-white rounded-xl shadow-lg mb-8">
+                        <div className="flex items-center justify-between p-6">
+                            <div className="flex-1">
+                                <h1 className="text-2xl font-extrabold text-gray-800">
+                                    Gặp gỡ người mới
+                                </h1>
+                                <p className="text-gray-500 mt-1">
+                                    Khám phá những người dùng phù hợp trong khu vực của bạn
+                                </p>
+                            </div>
+                            
+                            <div className="flex items-center gap-4">
+                                {/* Settings button */}
+                                <button
+                                    onClick={() => setShowSettings(true)}
+                                    className="p-3 hover:bg-gray-100 rounded-full transition-colors"
+                                >
+                                    <i className="fas fa-cog text-gray-600"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Settings Modal - keeping existing code */}
+                    {showSettings && (
+                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                            <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto animate-modal-slide-up">
+                                {/* Close button */}
+                                <button
+                                    onClick={() => setShowSettings(false)}
+                                    className="absolute right-4 top-4 z-10 p-2 bg-white hover:bg-gray-100/10 rounded-full transition-colors"
+                                >
+                                    <i className="fas fa-times text-xl text-gray-600"></i>
+                                </button>
+
+                                {/* SearchSettings component */}
+                                <SearchSettings onClose={() => setShowSettings(false)} />
+                            </div>
+                        </div>
+                    )}
+
                     <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 xl:gap-8">
                         {currentUsers.map((user) => (
                             <div
@@ -240,6 +312,9 @@ const Home = ({ setIsLoggedIn, isLoggedIn, showUserLists, setShowUserLists }: Ho
                                 className="bg-white rounded-xl p-6 cursor-pointer hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 hover:scale-105"
                             >
                                 <div className="flex flex-col items-center">
+                                    <div className="absolute top-2 right-2 bg-pink-500 text-white px-2 py-1 rounded-full text-sm">
+                                        {user.matchScore}% phù hợp
+                                    </div>
                                     <img
                                         src={user.profilePictures[0] || "https://via.placeholder.com/150"}
                                         alt={user.name}
@@ -433,6 +508,17 @@ const Home = ({ setIsLoggedIn, isLoggedIn, showUserLists, setShowUserLists }: Ho
                                                     ))}
                                                 </div>
                                             </div>
+
+                                            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition duration-300">
+                                                <h3 className="text-xl font-bold text-purple-600 mb-4 flex items-center gap-2">
+                                                    <i className="fas fa-map-marker-alt"></i>
+                                                    Vị trí
+                                                </h3>
+                                                <div className="grid grid-cols-1 gap-4">
+                                                    <InfoItem label="Thành phố" value={selectedProfile.city} />
+                                                    <InfoItem label="Quận/Huyện" value={selectedProfile.district} />
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -470,9 +556,16 @@ const Home = ({ setIsLoggedIn, isLoggedIn, showUserLists, setShowUserLists }: Ho
 
             {/* Overlay để đóng UserLists khi click bên ngoài */}
             {showUserLists && (
-                <div 
+                <div
                     className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"
                     onClick={() => setShowUserLists(false)}
+                />
+            )}
+
+            {showLocationModal && (
+                <LocationUpdateModal
+                    isOpen={showLocationModal}
+                    onClose={() => setShowLocationModal(false)}
                 />
             )}
         </>

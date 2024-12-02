@@ -1,5 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { LocationSchema } from './location.schema';
+import { Location } from './location.schema';
 
 export type UserDocument = User & Document;
 
@@ -26,11 +28,17 @@ export class User {
     @Prop({ default: false }) // Thêm trường cho trạng thái xác thực
     isVerified: boolean;
 
-    @Prop({ type: { type: String, enum: ['Point'], required: true }, coordinates: { type: [Number], required: true } }) // Định nghĩa rõ ràng cho trường location
+    @Prop({ type: Object })
     location: {
-        type: { type: string; enum: ['Point']; required: true },
-        coordinates: number[]; // [longitude, latitude]
+        type: string;
+        coordinates: number[];
     };
+
+    @Prop({ required: false })
+    city: string;
+
+    @Prop({ required: false })
+    district: string;
 
     @Prop({ default: false }) // Thêm trường cho trạng thái đã phê duyệt
     isApproved: boolean;
@@ -83,6 +91,15 @@ export class User {
         default: 'both'
     })
     genderPreference: string;
+
+    @Prop({ type: Object, default: {
+        prioritizeInterests: true,
+        prioritizeAge: true,
+        prioritizeEducation: true,
+        prioritizeZodiac: true,
+        prioritizeOnline: true
+    }})
+    searchPreferences: Record<string, boolean>;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

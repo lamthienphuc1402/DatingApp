@@ -19,6 +19,7 @@ interface User {
   gender: 'male' | 'female' | 'other';
   genderPreference: 'male' | 'female' | 'both';
   isOnline: boolean;
+  matchScore: number;
 }
 
 interface UserListsProps {
@@ -282,6 +283,7 @@ const UserLists: React.FC<UserListsProps> = ({ refresh, onSelectUser, onClose })
                 onClick={() => handleSelectUser(user)}
               >
                 <div className="relative">
+                  
                   <img
                     src={user.profilePictures[0] || "https://via.placeholder.com/40"}
                     alt={user.name}

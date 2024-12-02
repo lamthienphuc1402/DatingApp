@@ -21,6 +21,7 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { LikeUserDto } from './dto/like-user.dto'; // Nhập LikeUserDto
 import { UpdateUserDto } from './dto/update-user.dto'; // Nhập DTO mới
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import { UpdateLocationDto } from './dto/update-location.dto';
 
 @ApiTags('users')
 @Controller('users')
@@ -160,5 +161,22 @@ export class UserController {
   @ApiOperation({ summary: 'Lấy danh sách người dùng phù hợp theo giới tính' })
   async getMatchingUsers(@Param('userId') userId: string) {
     return this.userService.findMatchingUsers(userId);
+  }
+
+  @Put(':userId/location')
+  @ApiOperation({ summary: 'Cập nhật vị trí người dùng' })
+  async updateLocation(
+    @Param('userId') userId: string,
+    @Body() updateLocationDto: UpdateLocationDto
+  ) {
+    return this.userService.updateLocation(userId, updateLocationDto);
+  }
+
+  @Put(':userId/search-preferences')
+  async updateSearchPreferences(
+    @Param('userId') userId: string,
+    @Body() preferences: any
+  ) {
+    return this.userService.updateSearchPreferences(userId, preferences);
   }
 }

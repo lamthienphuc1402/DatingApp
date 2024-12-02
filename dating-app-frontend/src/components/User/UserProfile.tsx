@@ -15,6 +15,12 @@ interface UserData {
   hobbies: string;
   gender: 'male' | 'female' | 'other';
   genderPreference: 'male' | 'female' | 'both';
+  city?: string;
+  district?: string;
+  location?: {
+    type: string;
+    coordinates: number[];
+  };
 }
 
 const UserProfile = ({setIsLoggedIn}: any) => {
@@ -167,6 +173,23 @@ const UserProfile = ({setIsLoggedIn}: any) => {
                         {user.genderPreference === 'male' ? 'Nam' : 
                          user.genderPreference === 'female' ? 'Nữ' : 'Cả hai'}
                       </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 rounded-2xl p-6 transform transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+                  <h3 className="text-2xl font-bold mb-4 text-blue-800 flex items-center gap-2">
+                    <i className="fas fa-map-marker-alt"></i>
+                    Vị trí
+                  </h3>
+                  <div className="space-y-3 md:space-y-4">
+                    <div>
+                      <p className="text-blue-600">Thành phố</p>
+                      <p className="text-lg font-medium text-blue-800">{user.city || 'Chưa cập nhật'}</p>
+                    </div>
+                    <div>
+                      <p className="text-blue-600">Quận/Huyện</p>
+                      <p className="text-lg font-medium text-blue-800">{user.district || 'Chưa cập nhật'}</p>
                     </div>
                   </div>
                 </div>

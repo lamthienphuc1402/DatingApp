@@ -12,6 +12,7 @@ export interface User {
   hobbies: string;
   gender: 'male' | 'female' | 'other';
   genderPreference: 'male' | 'female' | 'both';
+  matchScore?: number;
 }
 
 export interface UserData {

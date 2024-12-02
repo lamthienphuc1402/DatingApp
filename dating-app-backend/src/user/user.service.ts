@@ -15,6 +15,8 @@ import {VerifyUserDto} from './dto/verify-user.dto'; // Nhập VerifyUserDto
 import {LocationService} from 'src/location-service/location-service.service';
 import {UpdateUserDto} from './dto/update-user.dto';
 import {CloudinaryService} from 'src/cloudinary/cloudinary.service';
+import {UpdateLocationDto} from './dto/update-location.dto';
+import axios from 'axios';
 
 @Injectable()
 export class UserService {
@@ -116,37 +118,191 @@ export class UserService {
     }
 
     async findNearbyUsers(userId: string, maxDistance: number): Promise<User[]> {
-        const user = await this.userModel.findById(userId);
-        if (!user || !user.location) {
-            throw new HttpException(
-                'User not found or location not set',
-                HttpStatus.NOT_FOUND,
-            );
+        try {
+            const user = await this.userModel.findById(userId);
+            if (!user) {
+                console.log('User not found:', userId);
+                throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+            }
+
+            if (!user.location?.coordinates) {
+                console.log('User location not found, falling back to city/district search');
+                // Fallback về tìm kiếm theo city/district nếu không có tọa độ
+                return this.findUsersByCityDistrict(user);
+            }
+
+            console.log('Finding nearby users for:', user.name);
+            console.log('Current user location:', user.location);
+
+            const searchPreferences = await this.getSearchPreferences(userId);
+
+            // Xây dựng query với $geoNear
+            const baseQuery = {
+                $and: [
+                    { _id: { $ne: userId } },
+                    { _id: { $nin: user.likedUsers } },
+                    {
+                        location: {
+                            $near: {
+                                $geometry: {
+                                    type: "Point",
+                                    coordinates: user.location.coordinates
+                                },
+                                $maxDistance: maxDistance * 1000 // Chuyển đổi km sang mét
+                            }
+                        }
+                    }
+                ]
+            };
+
+            // Thêm điều kiện về giới tính và xu hướng tìm kiếm
+            const genderPreferenceQuery = this.buildGenderPreferenceQuery(user);
+            if (genderPreferenceQuery) {
+                baseQuery.$and.push(genderPreferenceQuery);
+            }
+
+            const users = await this.userModel
+                .find(baseQuery)
+                .lean()
+                .exec();
+
+            console.log('Found nearby users:', users.length);
+
+            // Tính điểm và sắp xếp kết quả
+            const scoredUsers = users.map(matchUser => {
+                let totalScore = 0;
+                let maxPossibleScore = 0;
+
+                // Điểm cho khoảng cách (30 điểm)
+                if (matchUser.location?.coordinates) {
+                    const distance = this.calculateDistance(
+                        user.location.coordinates,
+                        matchUser.location.coordinates
+                    );
+                    const distanceScore = Math.max(0, 30 - (distance / maxDistance) * 30);
+                    totalScore += distanceScore;
+                    maxPossibleScore += 30;
+                }
+
+                // 1. Điểm cho sở thích chung (40 điểm)
+                if (searchPreferences.prioritizeInterests && user.interests && matchUser.interests) {
+                    const commonInterests = user.interests.filter(interest => 
+                        matchUser.interests.includes(interest)
+                    );
+                    const maxInterests = Math.min(user.interests.length, 5); // Giới hạn tối a 5 sở thích
+                    const interestScore = (commonInterests.length / maxInterests) * 40;
+                    totalScore += interestScore;
+                    maxPossibleScore += 40;
+                }
+
+                // 2. Điểm cho độ tuổi gần nhau (25 điểm)
+                if (searchPreferences.prioritizeAge && user.age && matchUser.age) {
+                    const ageDiff = Math.abs(user.age - matchUser.age);
+                    let ageScore = 0;
+                    if (ageDiff <= 3) ageScore = 25;
+                    else if (ageDiff <= 5) ageScore = 20;
+                    else if (ageDiff <= 8) ageScore = 15;
+                    else if (ageDiff <= 10) ageScore = 10;
+                    else if (ageDiff <= 15) ageScore = 5;
+                    totalScore += ageScore;
+                    maxPossibleScore += 25;
+                }
+
+                // 3. Điểm cho trình độ học vấn (15 điểm)
+                if (searchPreferences.prioritizeEducation && user.education && matchUser.education) {
+                    const educationScore = user.education === matchUser.education ? 15 : 0;
+                    totalScore += educationScore;
+                    maxPossibleScore += 15;
+                }
+
+                // 4. Điểm cho cung hoàng đạo (15 điểm)
+                if (searchPreferences.prioritizeZodiac && user.zodiacSign && matchUser.zodiacSign) {
+                    const zodiacCompatibility = this.checkZodiacCompatibility(user.zodiacSign, matchUser.zodiacSign);
+                    const zodiacScore = (zodiacCompatibility / 3) * 15; // Chuyển đổi thang điểm 0-3 thành 0-15
+                    totalScore += zodiacScore;
+                    maxPossibleScore += 15;
+                }
+
+                // 5. Điểm cho người dùng online (5 điểm)
+                if (searchPreferences.prioritizeOnline && matchUser.isOnline) {
+                    totalScore += 5;
+                    maxPossibleScore += 5;
+                }
+
+                const matchScore = maxPossibleScore > 0 
+                    ? Math.round((totalScore / maxPossibleScore) * 100) 
+                    : 0;
+
+                const matchDetails = {
+                    ...this.calculateMatchDetails(user, matchUser),
+                    distance: this.calculateDistance(
+                        user.location.coordinates,
+                        matchUser.location.coordinates
+                    ).toFixed(1) // Làm tròn đến 1 chữ số thập phân
+                };
+
+                return {
+                    ...matchUser,
+                    matchScore,
+                    matchDetails
+                };
+            });
+
+            return scoredUsers.sort((a, b) => b.matchScore - a.matchScore);
+        } catch (error) {
+            console.error('Error in findNearbyUsers:', error);
+            throw error;
         }
+    }
 
-        // Kiểm tra tọa độ của người dùng
-        console.log('User Location:', user.location.coordinates);
+    private buildGenderPreferenceQuery(user: User) {
+        try {
+            const genderQuery: any = {};
 
-        // Tìm kiếm người dùng gần
-        const nearbyUsers = await this.userModel
-            .find({
-                location: {
-                    $near: {
-                        $geometry: {
-                            type: 'Point',
-                            coordinates: user.location.coordinates,
-                        },
-                        $maxDistance: maxDistance, // Đơn vị là mét
-                    },
-                },
-                _id: {$ne: userId, $nin: user.likedUsers}, // Không tìm kiếm chính người dùng và những người đã thích
-            })
-            .exec();
+            if (!user.genderPreference || !user.gender) {
+                return null;
+            }
 
-        // Kiểm tra danh sách người dùng gần
-        console.log('Nearby Users:', nearbyUsers);
+            if (user.genderPreference !== 'both') {
+                genderQuery.gender = user.genderPreference;
+            }
 
-        return nearbyUsers; // Trả về danh sách người dùng gần
+            genderQuery.$or = [
+                { genderPreference: user.gender },
+                { genderPreference: 'both' }
+            ];
+
+            return genderQuery;
+        } catch (error) {
+            console.error('Error building gender preference query:', error);
+            return null;
+        }
+    }
+
+    private checkZodiacCompatibility(sign1: string, sign2: string): number {
+        // Định nghĩa các cung hoàng đạo tương thích
+        const compatibilityMap: { [key: string]: string[] } = {
+            'Bạch Dương': ['Sư Tử', 'Nhân Mã', 'Song Tử'],
+            'Kim Ngưu': ['Xử Nữ', 'Ma Kết', 'Bọ Cạp'],
+            'Song Tử': ['Bạch Dương', 'Thiên Bình', 'Bảo Bình'],
+            'Cự Giải': ['Bọ Cạp', 'Song Ngư', 'Ma Kết'],
+            'Sư Tử': ['Bạch Dương', 'Nhân Mã', 'Thiên Bình'],
+            'Xử Nữ': ['Kim Ngưu', 'Ma Kết', 'Bọ Cạp'],
+            'Thiên Bình': ['Song Tử', 'Bảo Bình', 'Sư Tử'],
+            'Bọ Cạp': ['Cự Giải', 'Song Ngư', 'Kim Ngưu'],
+            'Nhân Mã': ['Bạch Dương', 'Sư Tử', 'Bảo Bình'],
+            'Ma Kết': ['Kim Ngưu', 'Xử Nữ', 'Bọ Cạp'],
+            'Bảo Bình': ['Song Tử', 'Thiên Bình', 'Nhân Mã'],
+            'Song Ngư': ['Cự Giải', 'Bọ Cạp', 'Ma Kết']
+        };
+
+        // Kiểm tra tương thích
+        if (compatibilityMap[sign1]?.includes(sign2)) {
+            return 3; // Rất tương thích
+        } else if (sign1 === sign2) {
+            return 2; // Cùng cung
+        }
+        return 0; // Không tương thích đặc biệt
     }
 
     async updateUserLocation(
@@ -359,5 +515,127 @@ export class UserService {
         ];
 
         return await this.userModel.find(query);
+    }
+
+    async updateLocation(userId: string, updateLocationDto: UpdateLocationDto) {
+        const coordinates = await this.getCoordinatesFromLocation(
+            updateLocationDto.city,
+            updateLocationDto.district
+        );
+
+        return this.userModel.findByIdAndUpdate(
+            userId,
+            {
+                city: updateLocationDto.city,
+                district: updateLocationDto.district,
+                location: {
+                    type: 'Point',
+                    coordinates: coordinates
+                }
+            },
+            { new: true }
+        );
+    }
+
+    private async getCoordinatesFromLocation(city: string, district: string) {
+        // Sử dụng một service geocoding để lấy tọa độ từ tên thành phố/quận
+        // Ví dụ: OpenStreetMap Nominatim API
+        const query = `${district}, ${city}, Vietnam`;
+        const response = await axios.get(
+            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json`
+        );
+        
+        if (response.data && response.data[0]) {
+            return [
+                parseFloat(response.data[0].lon),
+                parseFloat(response.data[0].lat)
+            ];
+        }
+        
+        throw new HttpException('Không tìm thấy tọa độ cho địa chỉ này', HttpStatus.NOT_FOUND);
+    }
+
+    private async getSearchPreferences(userId: string): Promise<any> {
+        try {
+            // Lấy preferences từ database hoặc cache
+            const preferences = await this.userModel.findById(userId).select('searchPreferences');
+            return preferences?.searchPreferences || {
+                prioritizeInterests: true,
+                prioritizeAge: true,
+                prioritizeEducation: true,
+                prioritizeZodiac: true,
+                prioritizeOnline: true
+            };
+        } catch (error) {
+            console.error('Error getting search preferences:', error);
+            // Trả về preferences mặc định nếu có lỗi
+            return {
+                prioritizeInterests: true,
+                prioritizeAge: true,
+                prioritizeEducation: true,
+                prioritizeZodiac: true,
+                prioritizeOnline: true
+            };
+        }
+    }
+
+    // Thêm endpoint để cập nhật search preferences
+    async updateSearchPreferences(userId: string, preferences: any): Promise<User> {
+        return this.userModel.findByIdAndUpdate(
+            userId,
+            { $set: { searchPreferences: preferences } },
+            { new: true }
+        );
+    }
+
+    // Hàm tính khoảng cách giữa 2 điểm (theo km)
+    private calculateDistance(coords1: number[], coords2: number[]): number {
+        const [lon1, lat1] = coords1;
+        const [lon2, lat2] = coords2;
+        
+        const R = 6371; // Bán kính Trái Đất (km)
+        const dLat = this.toRad(lat2 - lat1);
+        const dLon = this.toRad(lon2 - lon1);
+        const a = 
+            Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(this.toRad(lat1)) * Math.cos(this.toRad(lat2)) * 
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+    }
+
+    private toRad(value: number): number {
+        return value * Math.PI / 180;
+    }
+
+    // Fallback function khi không có tọa độ
+    private async findUsersByCityDistrict(user: User): Promise<User[]> {
+        const baseQuery = {
+            $and: [
+                { _id: { $ne: user._id } },
+                { city: user.city },
+                { district: user.district },
+                { _id: { $nin: user.likedUsers } }
+            ]
+        };
+
+        const genderPreferenceQuery = this.buildGenderPreferenceQuery(user);
+        if (genderPreferenceQuery) {
+            baseQuery.$and.push(genderPreferenceQuery);
+        }
+
+        return this.userModel.find(baseQuery).lean().exec();
+    }
+
+    // Tính toán chi tiết match
+    private calculateMatchDetails(user: User, matchUser: User) {
+        return {
+            commonInterests: user.interests?.filter(i => matchUser.interests?.includes(i)) || [],
+            ageDifference: user.age ? Math.abs(user.age - (matchUser.age || 0)) : null,
+            sameEducation: user.education === matchUser.education,
+            zodiacCompatibility: user.zodiacSign && matchUser.zodiacSign ? 
+                this.checkZodiacCompatibility(user.zodiacSign, matchUser.zodiacSign) : null,
+            isOnline: matchUser.isOnline
+        };
     }
 }
