@@ -3,39 +3,42 @@ import axios from "axios";
 import { motion } from "framer-motion";
 
 const ApproveModal = ({ fromUser, targetUser, socket }: any) => {
-  if(!fromUser || !targetUser || fromUser === JSON.parse(localStorage.getItem("user") || "")?._id) {
-    const modal: any = document.querySelector('#approveBox')
-    if(modal) modal.close()
+  if (
+    !fromUser ||
+    !targetUser ||
+    fromUser === JSON.parse(localStorage.getItem("user") || "")?._id
+  ) {
+    const modal: any = document.querySelector("#approveBox");
+    if (modal) modal.close();
     return;
   }
-    const [fromUserData, setFromUserData] = useState<any>();
-    const [targetUserData, setTargetUserData] = useState<any>();
-    console.log("from user: ");
-    
-    useEffect(() => {
-  
-      
-        const fetchData = async () => {
-            const [responseFromUser, responseTargetUser] = await Promise.all([
-                await axios.get(`http://localhost:3000/users/${fromUser}`),
-                await axios.get(`http://localhost:3000/users/${targetUser}`)
-            ])
-            setFromUserData(responseFromUser.data);
-            setTargetUserData(responseTargetUser.data);
-        }
-        fetchData();
-    }, [])
+  const [fromUserData, setFromUserData] = useState<any>();
+  const [targetUserData, setTargetUserData] = useState<any>();
+  console.log("from user: ");
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const [responseFromUser, responseTargetUser] = await Promise.all([
+        await axios.get(`http://localhost:3000/users/${fromUser}`),
+        await axios.get(`http://localhost:3000/users/${targetUser}`),
+      ]);
+      setFromUserData(responseFromUser.data);
+      setTargetUserData(responseTargetUser.data);
+    };
+    fetchData();
+  }, []);
 
   const handleApprove = async () => {
-    try {     
+    try {
       // Sau khi cập nhật DB thành công, emit socket event
       socket.emit("sendLike", {
         currentUserId: targetUser,
         targetUserId: fromUser,
-        approveStatus: "success"
+        approveStatus: "success",
       });
-      const modal: any = document.querySelector('#approveBox')
-      if(modal) modal.close()
+      socket.off("sendLike");
+      const modal: any = document.querySelector("#approveBox");
+      if (modal) modal.close();
     } catch (err) {
       console.error("Lỗi khi chấp nhận match:", err);
     }
@@ -45,39 +48,40 @@ const ApproveModal = ({ fromUser, targetUser, socket }: any) => {
     socket.emit("sendLike", {
       currentUserId: targetUser,
       targetUserId: fromUser,
-      approveStatus: "rejected"
+      approveStatus: "rejected",
     });
-    const modal: any = document.querySelector('#approveBox')
-    if(modal) modal.close()
+
+    const modal: any = document.querySelector("#approveBox");
+    if (modal) modal.close();
   };
 
   useEffect(() => {
     const modal: any = document.querySelector("#approveBox");
     if (modal) {
-        modal.showModal();
+      modal.showModal();
     }
     return () => {
-        if (modal) {
-            modal.close();
-        }
+      if (modal) {
+        modal.close();
+      }
     };
   }, []);
 
   return (
     <dialog id="approveBox" className="p-6 rounded-lg shadow-xl bg-white">
-      <motion.div 
+      <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         className="text-center"
       >
-        <motion.div 
+        <motion.div
           className="mb-4"
           whileHover={{ scale: 1.1 }}
           transition={{ type: "spring", stiffness: 300 }}
         >
           {fromUserData?.profilePictures && fromUserData?.profilePictures[0] ? (
-            <img 
-              src={fromUserData?.profilePictures[0]} 
+            <img
+              src={fromUserData?.profilePictures[0]}
               alt={fromUserData?.name}
               className="w-32 h-32 mx-auto rounded-full object-cover border-4 border-pink-500"
             />
@@ -93,7 +97,9 @@ const ApproveModal = ({ fromUser, targetUser, socket }: any) => {
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
         >
-          <h3 className="text-2xl font-bold text-gray-900 mb-2">{fromUserData?.name}</h3>
+          <h3 className="text-2xl font-bold text-gray-900 mb-2">
+            {fromUserData?.name}
+          </h3>
           {fromUserData?.bio && (
             <p className="text-lg text-gray-600 mb-4">{fromUserData?.bio}</p>
           )}
