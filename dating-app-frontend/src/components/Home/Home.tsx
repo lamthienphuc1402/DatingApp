@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import Chat from "../Chat";
 import UserLists from "../UserLists";
@@ -9,6 +9,7 @@ import ApproveNotice from "./ApproveNotice.tsx";
 import LocationUpdateModal from "../LocationUpdateModal";
 import axios from "axios";
 import SearchSettings from "../Settings/SearchSettings.tsx";
+import { useSwipeable } from 'react-swipeable';
 
 interface User {
   _id: string;
@@ -253,6 +254,102 @@ const Home = ({
     checkUserLocation();
   }, []);
 
+  const [viewMode, setViewMode] = useState<'swipe' | 'list'>('list');
+
+  const [swipeDirection, setSwipeDirection] = useState<null | 'left' | 'right'>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragX, setDragX] = useState(0);
+
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (viewMode === 'swipe' && currentUsers.length > 0) {
+        if (e.key === 'ArrowLeft') {
+          handleDislike();
+        } else if (e.key === 'ArrowRight') {
+          handleLike(currentUsers[currentIndex]._id);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [viewMode, currentIndex, currentUsers]);
+
+  const handlers = useSwipeable({
+    onSwiping: (e) => {
+      if (viewMode === 'swipe') {
+        setIsDragging(true);
+        setDragX(e.deltaX);
+      }
+    },
+    onSwipedLeft: () => {
+      if (viewMode === 'swipe') {
+        setSwipeDirection('left');
+        handleDislike();
+      }
+    },
+    onSwipedRight: () => {
+      if (viewMode === 'swipe') {
+        setSwipeDirection('right');
+        handleLike(currentUsers[currentIndex]._id);
+      }
+    },
+    onSwiped: () => {
+      setIsDragging(false);
+      setDragX(0);
+    },
+    trackMouse: true,
+    preventDefaultTouchmoveEvent: true,
+  });
+
+  // Thêm state để theo dõi ảnh hiện tại
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+
+  // Thêm hàm xử lý chuyển ảnh
+  const handlePhotoNavigation = useCallback((direction: 'prev' | 'next', e: React.MouseEvent) => {
+    e.stopPropagation(); // Ngăn chặn sự kiện swipe
+    if (direction === 'prev') {
+      setCurrentPhotoIndex(prev => (prev > 0 ? prev - 1 : prev));
+    } else {
+      setCurrentPhotoIndex(prev => {
+        const maxIndex = currentUsers[currentIndex]?.profilePictures.length - 1;
+        return prev < maxIndex ? prev + 1 : prev;
+      });
+    }
+  }, [currentIndex, currentUsers]);
+
+  // Reset photo index khi chuyển user
+  useEffect(() => {
+    setCurrentPhotoIndex(0);
+  }, [currentIndex]);
+
+  // Thêm state cho timer
+  const [storyTimer, setStoryTimer] = useState<NodeJS.Timeout | null>(null);
+
+  // Hàm xử lý tự động chuyển ảnh sau 45s
+  const startStoryTimer = useCallback(() => {
+    if (storyTimer) clearTimeout(storyTimer);
+    
+    const timer = setTimeout(() => {
+      const user = currentUsers[currentIndex];
+      if (user && currentPhotoIndex < user.profilePictures.length - 1) {
+        setCurrentPhotoIndex(prev => prev + 1);
+      }
+    }, 45000); // 45 seconds
+    
+    setStoryTimer(timer);
+  }, [currentIndex, currentPhotoIndex, currentUsers]);
+
+  // Reset và start timer khi chuyển ảnh hoặc user
+  useEffect(() => {
+    if (viewMode === 'swipe') {
+      startStoryTimer();
+    }
+    return () => {
+      if (storyTimer) clearTimeout(storyTimer);
+    };
+  }, [currentPhotoIndex, currentIndex, viewMode]);
+
   return (
     <>
       <ApproveNotice
@@ -302,6 +399,28 @@ const Home = ({
               </div>
 
               <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <span className={`text-xs sm:text-sm ${viewMode === 'list' ? 'text-gray-800' : 'text-gray-400'}`}>
+                    <i className="fas fa-th-large mr-1 hidden sm:inline"></i>
+                    <span className="sm:hidden">List</span>
+                    <span className="hidden sm:inline">Danh sách</span>
+                  </span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={viewMode === 'swipe'}
+                      onChange={() => setViewMode(prev => prev === 'list' ? 'swipe' : 'list')}
+                    />
+                    <div className="w-12 sm:w-14 h-6 sm:h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-pink-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 sm:after:h-6 sm:after:w-6 after:transition-all peer-checked:bg-pink-500"></div>
+                  </label>
+                  <span className={`text-xs sm:text-sm ${viewMode === 'swipe' ? 'text-gray-800' : 'text-gray-400'}`}>
+                    <i className="fas fa-hand-pointer mr-1 hidden sm:inline"></i>
+                    <span className="sm:hidden">Swipe</span>
+                    <span className="hidden sm:inline">Quẹt</span>
+                  </span>
+                </div>
+
                 {/* Settings button */}
                 <button
                   onClick={() => setShowSettings(true)}
@@ -331,67 +450,185 @@ const Home = ({
             </div>
           )}
 
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 xl:gap-8">
-            {currentUsers.map((user) => (
-              <div
-                key={user._id}
-                onClick={() => setSelectedProfile(user)}
-                className="bg-white rounded-xl p-6 cursor-pointer hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 hover:scale-105"
-              >
-                <div className="flex flex-col items-center">
-                  <div className="absolute top-2 right-2 bg-pink-500 text-white px-2 py-1 rounded-full text-sm">
-                    {user.matchScore}% phù hợp
-                  </div>
-                  <img
-                    src={
-                      user.profilePictures[0] ||
-                      "https://via.placeholder.com/150"
-                    }
-                    alt={user.name}
-                    className="w-32 h-32 object-cover rounded-full border-4 border-pink-200 mb-4"
-                  />
-                  {user.age && (
-                    <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                      {user.name}, {user.age}
-                    </h3>
-                  )}
-                  {!user.age && (
-                    <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                      {user.name}
-                    </h3>
-                  )}
-                  {user.bio && (
-                    <p className="text-gray-600 text-sm text-center line-clamp-3 mb-3">
-                      {user.bio}
-                    </p>
-                  )}
-                  {!user.bio && (
-                    <p className="text-gray-400 text-sm italic text-center mb-3">
-                      Chưa có tiểu sử
-                    </p>
-                  )}
-                </div>
-
-                {user.interests && user.interests.length > 0 && (
-                  <div className="flex flex-wrap justify-center gap-2 mt-2">
-                    {user.interests.slice(0, 3).map((interest, index) => (
-                      <span
-                        key={index}
-                        className="bg-pink-100 text-pink-600 text-xs px-2 py-1 rounded-full"
-                      >
-                        {interest}
-                      </span>
-                    ))}
-                    {user.interests.length > 3 && (
-                      <span className="text-gray-500 text-xs">
-                        +{user.interests.length - 3}
-                      </span>
+          {viewMode === 'list' ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 xl:gap-8">
+              {currentUsers.map((user) => (
+                <div
+                  key={user._id}
+                  onClick={() => setSelectedProfile(user)}
+                  className="bg-white rounded-xl p-6 cursor-pointer hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 hover:scale-105"
+                >
+                  <div className="flex flex-col items-center">
+                    <div className="absolute top-2 right-2 bg-pink-500 text-white px-2 py-1 rounded-full text-sm">
+                      {user.matchScore}% phù hợp
+                    </div>
+                    <img
+                      src={
+                        user.profilePictures[0] ||
+                        "https://via.placeholder.com/150"
+                      }
+                      alt={user.name}
+                      className="w-32 h-32 object-cover rounded-full border-4 border-pink-200 mb-4"
+                    />
+                    {user.age && (
+                      <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                        {user.name}, {user.age}
+                      </h3>
+                    )}
+                    {!user.age && (
+                      <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                        {user.name}
+                      </h3>
+                    )}
+                    {user.bio && (
+                      <p className="text-gray-600 text-sm text-center line-clamp-3 mb-3">
+                        {user.bio}
+                      </p>
+                    )}
+                    {!user.bio && (
+                      <p className="text-gray-400 text-sm italic text-center mb-3">
+                        Chưa có tiểu sử
+                      </p>
                     )}
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
+
+                  {user.interests && user.interests.length > 0 && (
+                    <div className="flex flex-wrap justify-center gap-2 mt-2">
+                      {user.interests.slice(0, 3).map((interest, index) => (
+                        <span
+                          key={index}
+                          className="bg-pink-100 text-pink-600 text-xs px-2 py-1 rounded-full"
+                        >
+                          {interest}
+                        </span>
+                      ))}
+                      {user.interests.length > 3 && (
+                        <span className="text-gray-500 text-xs">
+                          +{user.interests.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="max-w-md mx-auto">
+              {currentUsers.length > 0 ? (
+                <div className="relative h-[600px]" {...handlers}>
+                  {currentUsers.map((user, index) => (
+                    <div
+                      key={user._id}
+                      className={`absolute inset-0 transition-all duration-300 ${
+                        index === currentIndex ? 'z-10' : 'z-0'
+                      }`}
+                      style={{
+                        transform: index === currentIndex 
+                          ? `scale(1) translateX(${isDragging ? dragX : 0}px) rotate(${isDragging ? dragX * 0.1 : 0}deg)`
+                          : 'scale(0.95)',
+                        opacity: index === currentIndex ? 1 : 0,
+                        transition: isDragging ? 'none' : 'all 0.3s ease-out',
+                      }}
+                    >
+                      <div className="relative bg-white rounded-2xl shadow-xl overflow-hidden">
+                        {/* Stories Progress Bar */}
+                        <div className="absolute top-0 left-0 right-0 z-20 flex gap-1 p-2 bg-gradient-to-b from-black/50 to-transparent">
+                          {user.profilePictures.map((_, photoIndex) => (
+                            <div
+                              key={photoIndex}
+                              className="h-1 flex-1 rounded-full overflow-hidden bg-white/30"
+                            >
+                              <div
+                                className="h-full bg-white transition-all duration-300"
+                                style={{
+                                  width: photoIndex <= currentPhotoIndex ? '100%' : '0%',
+                                }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Main Photo Container */}
+                        <div className="relative aspect-[3/4]">
+                          {user.profilePictures.map((photo, photoIndex) => (
+                            <img
+                              key={photoIndex}
+                              src={photo || "https://via.placeholder.com/150"}
+                              alt={`${user.name} - ${photoIndex + 1}`}
+                              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
+                                photoIndex === currentPhotoIndex ? 'opacity-100' : 'opacity-0'
+                              }`}
+                            />
+                          ))}
+
+                          {/* Photo Navigation Tap Areas */}
+                          <div className="absolute inset-0 flex">
+                            <div 
+                              className="w-1/2 h-full"
+                              onClick={() => {
+                                if (currentPhotoIndex > 0) {
+                                  setCurrentPhotoIndex(prev => prev - 1);
+                                  startStoryTimer();
+                                }
+                              }}
+                            />
+                            <div 
+                              className="w-1/2 h-full"
+                              onClick={() => {
+                                const maxIndex = currentUsers[currentIndex]?.profilePictures.length - 1;
+                                if (currentPhotoIndex < maxIndex) {
+                                  setCurrentPhotoIndex(prev => prev + 1);
+                                  startStoryTimer();
+                                }
+                              }}
+                            />
+                          </div>
+
+                          {/* User Info Overlay */}
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
+                            <h3 className="text-2xl font-bold text-white">
+                              {user.name}, {user.age}
+                            </h3>
+                            <p className="text-white/80">{user.bio}</p>
+                          </div>
+                        </div>
+
+                        {/* Rest of the card content */}
+                        <div className="p-4">
+                          <div className="flex flex-wrap gap-2 mb-4">
+                            {user.interests?.slice(0, 3).map((interest, i) => (
+                              <span key={i} className="bg-pink-100 text-pink-600 px-3 py-1 rounded-full text-sm">
+                                {interest}
+                              </span>
+                            ))}
+                          </div>
+                          
+                          <div className="flex justify-center gap-4">
+                            <button
+                              onClick={() => handleDislike()}
+                              className="w-14 h-14 flex items-center justify-center bg-white border-2 border-red-500 text-red-500 rounded-full hover:bg-red-50 transition-colors"
+                            >
+                              <i className="fas fa-times text-xl"></i>
+                            </button>
+                            <button
+                              onClick={() => handleLike(user._id)}
+                              className="w-14 h-14 flex items-center justify-center bg-white border-2 border-green-500 text-green-500 rounded-full hover:bg-green-50 transition-colors"
+                            >
+                              <i className="fas fa-heart text-xl"></i>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-gray-500">Không còn người dùng nào trong khu vực của bạn</p>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="flex justify-center mt-6 gap-2">
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (

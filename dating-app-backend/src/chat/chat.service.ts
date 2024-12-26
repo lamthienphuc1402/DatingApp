@@ -24,7 +24,7 @@ export class ChatService {
             receiverId: payload.receiverId,
             content: payload.content,
         });
-        return message.save(); // Lưu tin nhắn vào cơ sở dữ liệu
+        return message.save(); // L��u tin nhắn vào cơ sở dữ liệu
     }
 
     async checkIfMatched(userId1: string, userId2: string): Promise<boolean> {
@@ -46,5 +46,34 @@ export class ChatService {
                 { senderId: userId2, receiverId: userId1 },
             ],
         }).exec(); // Lấy tin nhắn giữa hai người dùng
+    }
+
+    async addReaction(messageId: string, userId: string, emoji: string): Promise<Message> {
+        const message = await this.messageModel.findById(messageId);
+        if (!message) {
+            throw new HttpException('Message not found', HttpStatus.NOT_FOUND);
+        }
+
+        // Lấy reactions hiện tại hoặc tạo mới nếu chưa có
+        const reactions = message.reactions || new Map();
+        
+        // Lấy danh sách người dùng đã react với emoji này
+        const usersReacted = reactions.get(emoji) || [];
+        
+        // Nếu người dùng chưa react với emoji này
+        if (!usersReacted.includes(userId)) {
+            // Thêm userId vào danh sách
+            reactions.set(emoji, [...usersReacted, userId]);
+        } else {
+            // Nếu đã react rồi thì xóa reaction
+            reactions.set(emoji, usersReacted.filter(id => id !== userId));
+            // Nếu không còn ai react với emoji này thì xóa emoji
+            if (reactions.get(emoji).length === 0) {
+                reactions.delete(emoji);
+            }
+        }
+
+        message.reactions = reactions;
+        return message.save();
     }
 }

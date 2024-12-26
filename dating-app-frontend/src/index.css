@@ -72,3 +72,63 @@ input:-webkit-autofill:focus {
     overflow: hidden;
   }
 }
+
+.EmojiPickerReact {
+  position: absolute !important;
+  z-index: 1000 !important;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1) !important;
+}
+
+.emoji-picker-container {
+  position: relative;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.2s ease-out;
+}
+
+.message-wrapper {
+  position: relative;
+  width: fit-content;
+  max-width: 70%;
+}
+
+.reaction-button {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: opacity 0.2s;
+  z-index: 20;
+}
+
+.reactions-display {
+  display: flex;
+  gap: 4px;
+  font-size: 12px;
+  z-index: 10;
+  white-space: nowrap;
+}
+
+.reaction-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}

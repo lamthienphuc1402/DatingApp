@@ -117,177 +117,152 @@ export class UserService {
   }
 
   async findNearbyUsers(userId: string, maxDistance: number): Promise<User[]> {
-    try {
-      const user = await this.userModel.findById(userId);
-      if (!user) {
-        console.log('User not found:', userId);
-        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
-      }
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
 
-      if (!user.location?.coordinates) {
-        console.log(
-          'User location not found, falling back to city/district search',
-        );
-        // Fallback về tìm kiếm theo city/district nếu không có tọa độ
-        return this.findUsersByCityDistrict(user);
-      }
+    // Lấy preferences của user
+    const preferences = user.searchPreferences || {
+      prioritizeInterests: true,
+      prioritizeAge: true,
+      prioritizeEducation: true,
+      prioritizeZodiac: true,
+      prioritizeOnline: true,
+    };
 
-      console.log('Finding nearby users for:', user.name);
-      console.log('Current user location:', user.location);
+    // Xây dựng query điều kiện giới tính
+    const genderQuery = this.buildGenderPreferenceQuery(user);
 
-      const searchPreferences = await this.getSearchPreferences(userId);
-
-      // Xây dựng query với $geoNear
-      const baseQuery = {
-        $and: [
-          { _id: { $ne: userId } },
-          { _id: { $nin: user.likedUsers } },
-          {
-            location: {
-              $near: {
-                $geometry: {
-                  type: 'Point',
-                  coordinates: user.location.coordinates,
-                },
-                $maxDistance: maxDistance * 1000, // Chuyển đổi km sang mét
+    // Tìm users gần đó với điều kiện giới tính
+    const baseQuery: any = {
+      $and: [
+        { _id: { $ne: userId } },
+        { _id: { $nin: user.likedUsers } },
+        {
+          location: {
+            $near: {
+              $geometry: {
+                type: 'Point',
+                coordinates: user.location.coordinates,
               },
+              $maxDistance: maxDistance * 1000,
             },
           },
-        ],
-      };
+        },
+        // Thêm điều kiện giới tính vào query
+        ...(genderQuery ? [genderQuery] : []),
+      ],
+    };
 
-      // Thêm điều kiện về giới tính và xu hướng tìm kiếm
-      const genderPreferenceQuery = this.buildGenderPreferenceQuery(user);
-      if (genderPreferenceQuery) {
-        baseQuery.$and.push(genderPreferenceQuery);
+    const users = await this.userModel.find(baseQuery).lean().exec();
+
+    // Tính điểm dựa trên preferences
+    const scoredUsers = users.map((matchUser) => {
+      let totalScore = 0;
+      let maxPossibleScore = 0;
+
+      // Điểm khoảng cách (luôn tính)
+      if (matchUser.location?.coordinates && user.location?.coordinates) {
+        const distance = this.calculateDistance(
+          user.location.coordinates,
+          matchUser.location.coordinates,
+        );
+        const distanceScore = Math.max(0, 30 - (distance / maxDistance) * 30);
+        totalScore += distanceScore;
+        maxPossibleScore += 30;
       }
 
-      const users = await this.userModel.find(baseQuery).lean().exec();
+      // Chỉ tính điểm sở thích nếu được ưu tiên
+      if (preferences.prioritizeInterests && user.interests?.length && matchUser.interests?.length) {
+        const commonInterests = user.interests.filter((interest) =>
+          matchUser.interests.includes(interest),
+        );
+        const maxInterests = Math.min(user.interests.length, 5);
+        const interestScore = (commonInterests.length / maxInterests) * 40;
+        totalScore += interestScore;
+        maxPossibleScore += 40;
+      }
 
-      console.log('Found nearby users:', users.length);
+      // Chỉ tính điểm tuổi nếu được ưu tiên
+      if (preferences.prioritizeAge && user.age && matchUser.age) {
+        const ageDiff = Math.abs(user.age - matchUser.age);
+        let ageScore = 0;
+        if (ageDiff <= 3) ageScore = 25;
+        else if (ageDiff <= 5) ageScore = 20;
+        else if (ageDiff <= 8) ageScore = 15;
+        else if (ageDiff <= 10) ageScore = 10;
+        else if (ageDiff <= 15) ageScore = 5;
+        totalScore += ageScore;
+        maxPossibleScore += 25;
+      }
 
-      // Tính điểm và sắp xếp kết quả
-      const scoredUsers = users.map((matchUser) => {
-        let totalScore = 0;
-        let maxPossibleScore = 0;
+      // Chỉ tính điểm học vấn nếu được ưu tiên
+      if (preferences.prioritizeEducation && user.education && matchUser.education) {
+        const educationScore = user.education === matchUser.education ? 15 : 0;
+        totalScore += educationScore;
+        maxPossibleScore += 15;
+      }
 
-        // Điểm cho khoảng cách (30 điểm)
-        if (matchUser.location?.coordinates) {
-          const distance = this.calculateDistance(
-            user.location.coordinates,
-            matchUser.location.coordinates,
-          );
-          const distanceScore = Math.max(0, 30 - (distance / maxDistance) * 30);
-          totalScore += distanceScore;
-          maxPossibleScore += 30;
-        }
+      // Chỉ tính điểm cung hoàng đạo nếu được ưu tiên
+      if (preferences.prioritizeZodiac && user.zodiacSign && matchUser.zodiacSign) {
+        const zodiacCompatibility = this.checkZodiacCompatibility(
+          user.zodiacSign,
+          matchUser.zodiacSign,
+        );
+        const zodiacScore = (zodiacCompatibility / 3) * 15;
+        totalScore += zodiacScore;
+        maxPossibleScore += 15;
+      }
 
-        // 1. Điểm cho sở thích chung (40 điểm)
-        if (
-          searchPreferences.prioritizeInterests &&
-          user.interests &&
-          matchUser.interests
-        ) {
-          const commonInterests = user.interests.filter((interest) =>
-            matchUser.interests.includes(interest),
-          );
-          const maxInterests = Math.min(user.interests.length, 5); // Giới hạn tối a 5 sở thích
-          const interestScore = (commonInterests.length / maxInterests) * 40;
-          totalScore += interestScore;
-          maxPossibleScore += 40;
-        }
+      // Chỉ tính điểm online nếu được ưu tiên
+      if (preferences.prioritizeOnline && matchUser.isOnline) {
+        totalScore += 5;
+        maxPossibleScore += 5;
+      }
 
-        // 2. Điểm cho độ tuổi gần nhau (25 điểm)
-        if (searchPreferences.prioritizeAge && user.age && matchUser.age) {
-          const ageDiff = Math.abs(user.age - matchUser.age);
-          let ageScore = 0;
-          if (ageDiff <= 3) ageScore = 25;
-          else if (ageDiff <= 5) ageScore = 20;
-          else if (ageDiff <= 8) ageScore = 15;
-          else if (ageDiff <= 10) ageScore = 10;
-          else if (ageDiff <= 15) ageScore = 5;
-          totalScore += ageScore;
-          maxPossibleScore += 25;
-        }
+      const matchScore = maxPossibleScore > 0 
+        ? Math.round((totalScore / maxPossibleScore) * 100) 
+        : 0;
 
-        // 3. Điểm cho trình độ học vấn (15 điểm)
-        if (
-          searchPreferences.prioritizeEducation &&
-          user.education &&
-          matchUser.education
-        ) {
-          const educationScore =
-            user.education === matchUser.education ? 15 : 0;
-          totalScore += educationScore;
-          maxPossibleScore += 15;
-        }
+      return {
+        ...matchUser,
+        matchScore,
+      };
+    });
 
-        // 4. Điểm cho cung hoàng đạo (15 điểm)
-        if (
-          searchPreferences.prioritizeZodiac &&
-          user.zodiacSign &&
-          matchUser.zodiacSign
-        ) {
-          const zodiacCompatibility = this.checkZodiacCompatibility(
-            user.zodiacSign,
-            matchUser.zodiacSign,
-          );
-          const zodiacScore = (zodiacCompatibility / 3) * 15; // Chuyển đổi thang điểm 0-3 thành 0-15
-          totalScore += zodiacScore;
-          maxPossibleScore += 15;
-        }
-
-        // 5. Điểm cho người dùng online (5 điểm)
-        if (searchPreferences.prioritizeOnline && matchUser.isOnline) {
-          totalScore += 5;
-          maxPossibleScore += 5;
-        }
-
-        const matchScore =
-          maxPossibleScore > 0
-            ? Math.round((totalScore / maxPossibleScore) * 100)
-            : 0;
-
-        const matchDetails = {
-          ...this.calculateMatchDetails(user, matchUser),
-          distance: this.calculateDistance(
-            user.location.coordinates,
-            matchUser.location.coordinates,
-          ).toFixed(1), // Làm tròn đến 1 chữ số thập phân
-        };
-
-        return {
-          ...matchUser,
-          matchScore,
-          matchDetails,
-        };
-      });
-
-      return scoredUsers.sort((a, b) => b.matchScore - a.matchScore);
-    } catch (error) {
-      console.error('Error in findNearbyUsers:', error);
-      throw error;
-    }
+    // Sắp xếp theo điểm phù hợp từ cao xuống thấp
+    return scoredUsers.sort((a, b) => b.matchScore - a.matchScore);
   }
 
-  private buildGenderPreferenceQuery(user: User) {
+  private buildGenderPreferenceQuery(user: User): any {
     try {
-      const genderQuery: any = {};
-
       if (!user.genderPreference || !user.gender) {
         return null;
       }
 
+      // Nếu người dùng chỉ thích giới tính cụ thể
       if (user.genderPreference !== 'both') {
-        genderQuery.gender = user.genderPreference;
+        return {
+          $and: [
+            { gender: user.genderPreference },
+            {
+              $or: [
+                { genderPreference: user.gender },
+                { genderPreference: 'both' }
+              ]
+            }
+          ]
+        };
       }
 
-      genderQuery.$or = [
-        { genderPreference: user.gender },
-        { genderPreference: 'both' },
-      ];
-
-      return genderQuery;
+      // Nếu người dùng thích cả hai giới tính
+      return {
+        $or: [
+          { genderPreference: user.gender },
+          { genderPreference: 'both' }
+        ]
+      };
     } catch (error) {
       console.error('Error building gender preference query:', error);
       return null;

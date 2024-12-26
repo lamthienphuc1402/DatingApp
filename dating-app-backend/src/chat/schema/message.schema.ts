@@ -3,7 +3,7 @@ import { Document } from 'mongoose';
 
 export type MessageDocument = Message & Document;
 
-@Schema()
+@Schema({ timestamps: true })
 export class Message {
     @Prop({ required: true })
     senderId: string;
@@ -14,8 +14,8 @@ export class Message {
     @Prop({ required: true })
     content: string;
 
-    @Prop({ default: Date.now })
-    timestamp: Date;
+    @Prop({ type: Map, of: [String], default: {} })
+    reactions: Map<string, string[]>; // emoji: userId[]
 }
 
 export const MessageSchema = SchemaFactory.createForClass(Message);

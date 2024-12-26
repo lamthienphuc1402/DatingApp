@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
 interface SearchPreferences {
   prioritizeInterests: boolean;
@@ -39,10 +40,23 @@ const SearchSettings = () => {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Giả sử có API call để lưu
+      const userData = JSON.parse(localStorage.getItem("user") || "{}");
+      
+      // Lưu vào localStorage
       await localStorage.setItem('searchPreferences', JSON.stringify(preferences));
+      
+      // Gửi lên backend
+      await axios.put(
+        `http://localhost:3000/users/${userData._id}/search-preferences`,
+        preferences,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+      
       setIsDirty(false);
-      // Thông báo thành công
       alert('Đã lưu thay đổi thành công!');
     } catch (error) {
       alert('Có lỗi xảy ra khi lưu thay đổi');
@@ -100,7 +114,7 @@ const SearchSettings = () => {
             />
             <div className="ml-4">
               <label className="font-medium text-gray-800">Ưu tiên độ tuổi gần nhau</label>
-              <p className="text-sm text-gray-600">Tìm người có độ tuổi gần nhau với bạn</p>
+              <p className="text-sm text-gray-600">Tìm người có đ�� tuổi gần nhau với bạn</p>
             </div>
           </div>
 

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Query } from '@nestjs/common';
+import { Controller, Post, Body, Get, Query, Param } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { SendMessageDto } from './dto/send-message.dto';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -26,5 +26,13 @@ export class ChatController {
     @Query('userId2') userId2: string,
   ): Promise<Message[]> {
     return this.chatService.getMessagesBetweenUsers(userId1, userId2);
+  }
+
+  @Post('messages/:messageId/reactions')
+  async addReaction(
+    @Param('messageId') messageId: string,
+    @Body() body: { userId: string; emoji: string }
+  ) {
+    return this.chatService.addReaction(messageId, body.userId, body.emoji);
   }
 }
