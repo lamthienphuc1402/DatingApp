@@ -166,7 +166,7 @@ export class UserController {
   @ApiOperation({ summary: 'Cập nhật vị trí người dùng' })
   async updateLocation(
     @Param('userId') userId: string,
-    @Body() updateLocationDto: UpdateLocationDto
+    @Body() updateLocationDto: UpdateLocationDto,
   ) {
     return this.userService.updateLocation(userId, updateLocationDto);
   }
@@ -174,8 +174,15 @@ export class UserController {
   @Put(':userId/search-preferences')
   async updateSearchPreferences(
     @Param('userId') userId: string,
-    @Body() preferences: any
+    @Body() preferences: any,
   ) {
     return this.userService.updateSearchPreferences(userId, preferences);
+  }
+
+  @Put(':userId/delete-image')
+  async deleteImage(@Param('userId') userId: string, @Body() urlData: any) {
+    console.log('url data: ');
+    console.log(urlData);
+    return this.userService.deleteImage(userId, urlData);
   }
 }

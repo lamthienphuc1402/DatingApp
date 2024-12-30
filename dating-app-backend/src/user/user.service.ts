@@ -53,17 +53,17 @@ export class UserService {
 
     const verificationCode = randomUUID(); // Tạo mã xác thực
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10); // Băm mật khẩu với bcrypt
-    
+
     // Xử lý upload nhiều ảnh
     let profilePictureUrls: string[] = [];
     if (files && files.length > 0) {
-        // Upload tất cả các ảnh lên Cloudinary
-        profilePictureUrls = await Promise.all(
-            files.map(async (file) => {
-                const result = await this.cloudinaryService.uploadFile(file);
-                return result.url;
-            })
-        );
+      // Upload tất cả các ảnh lên Cloudinary
+      profilePictureUrls = await Promise.all(
+        files.map(async (file) => {
+          const result = await this.cloudinaryService.uploadFile(file);
+          return result.url;
+        }),
+      );
     }
 
     const createdUser = new this.userModel({
@@ -172,7 +172,11 @@ export class UserService {
       }
 
       // Chỉ tính điểm sở thích nếu được ưu tiên
-      if (preferences.prioritizeInterests && user.interests?.length && matchUser.interests?.length) {
+      if (
+        preferences.prioritizeInterests &&
+        user.interests?.length &&
+        matchUser.interests?.length
+      ) {
         const commonInterests = user.interests.filter((interest) =>
           matchUser.interests.includes(interest),
         );
@@ -196,14 +200,22 @@ export class UserService {
       }
 
       // Chỉ tính điểm học vấn nếu được ưu tiên
-      if (preferences.prioritizeEducation && user.education && matchUser.education) {
+      if (
+        preferences.prioritizeEducation &&
+        user.education &&
+        matchUser.education
+      ) {
         const educationScore = user.education === matchUser.education ? 15 : 0;
         totalScore += educationScore;
         maxPossibleScore += 15;
       }
 
       // Chỉ tính điểm cung hoàng đạo nếu được ưu tiên
-      if (preferences.prioritizeZodiac && user.zodiacSign && matchUser.zodiacSign) {
+      if (
+        preferences.prioritizeZodiac &&
+        user.zodiacSign &&
+        matchUser.zodiacSign
+      ) {
         const zodiacCompatibility = this.checkZodiacCompatibility(
           user.zodiacSign,
           matchUser.zodiacSign,
@@ -219,9 +231,10 @@ export class UserService {
         maxPossibleScore += 5;
       }
 
-      const matchScore = maxPossibleScore > 0 
-        ? Math.round((totalScore / maxPossibleScore) * 100) 
-        : 0;
+      const matchScore =
+        maxPossibleScore > 0
+          ? Math.round((totalScore / maxPossibleScore) * 100)
+          : 0;
 
       return {
         ...matchUser,
@@ -247,19 +260,16 @@ export class UserService {
             {
               $or: [
                 { genderPreference: user.gender },
-                { genderPreference: 'both' }
-              ]
-            }
-          ]
+                { genderPreference: 'both' },
+              ],
+            },
+          ],
         };
       }
 
       // Nếu người dùng thích cả hai giới tính
       return {
-        $or: [
-          { genderPreference: user.gender },
-          { genderPreference: 'both' }
-        ]
+        $or: [{ genderPreference: user.gender }, { genderPreference: 'both' }],
       };
     } catch (error) {
       console.error('Error building gender preference query:', error);
@@ -460,6 +470,18 @@ export class UserService {
     if (updateUserDto.interests) user.interests = updateUserDto.interests;
 
     return await user.save();
+  }
+
+  async deleteImage(userId: string, urlData: any) {
+    await this.userModel.findByIdAndUpdate(userId, {
+      $pull: {
+        profilePictures: urlData.url,
+      },
+    });
+    const tempUrlArr = urlData.url.split('/');
+    const publicId = tempUrlArr[tempUrlArr.length - 1].split('.')[0];
+    console.log(publicId);
+    await this.cloudinaryService.deleteImage(publicId);
   }
 
   async setUserOnline(
@@ -683,7 +705,7 @@ export class UserService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return this.userModel.countDocuments({
-      createdAt: { $gte: today }
+      createdAt: { $gte: today },
     });
   }
 
@@ -698,23 +720,23 @@ export class UserService {
     const users = await this.userModel.aggregate([
       {
         $match: {
-          createdAt: { $gte: thirtyDaysAgo }
-        }
+          createdAt: { $gte: thirtyDaysAgo },
+        },
       },
       {
         $group: {
-          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
-          count: { $sum: 1 }
-        }
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          count: { $sum: 1 },
+        },
       },
       {
-        $sort: { _id: 1 }
-      }
+        $sort: { _id: 1 },
+      },
     ]);
 
-    return users.map(item => ({
+    return users.map((item) => ({
       date: item._id,
-      count: item.count
+      count: item.count,
     }));
   }
 
@@ -722,19 +744,19 @@ export class UserService {
     const distribution = await this.userModel.aggregate([
       {
         $group: {
-          _id: "$gender",
-          count: { $sum: 1 }
-        }
-      }
+          _id: '$gender',
+          count: { $sum: 1 },
+        },
+      },
     ]);
 
     const result = {
       male: 0,
       female: 0,
-      other: 0
+      other: 0,
     };
 
-    distribution.forEach(item => {
+    distribution.forEach((item) => {
       result[item._id] = item.count;
     });
 
@@ -747,10 +769,10 @@ export class UserService {
       '18-24': 0,
       '25-34': 0,
       '35-44': 0,
-      '45+': 0
+      '45+': 0,
     };
 
-    users.forEach(user => {
+    users.forEach((user) => {
       if (user.age <= 24) ageGroups['18-24']++;
       else if (user.age <= 34) ageGroups['25-34']++;
       else if (user.age <= 44) ageGroups['35-44']++;
