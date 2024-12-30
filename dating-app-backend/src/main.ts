@@ -5,13 +5,15 @@ import * as cors from 'cors';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-
+  const port = process.env.PORT || 3000;
   // Cấu hình CORS
-  app.use(cors({
-    origin: 'http://localhost:5173', // Thay đổi nếu cần thiết
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    credentials: true,
-  }));
+  app.use(
+    cors({
+      origin: 'http://localhost:5173', // Thay đổi nếu cần thiết
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+      credentials: true,
+    }),
+  );
 
   const config = new DocumentBuilder()
     .setTitle('API Documentation')
@@ -21,6 +23,6 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  await app.listen(3000);
+  await app.listen(port);
 }
 bootstrap();
