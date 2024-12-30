@@ -28,7 +28,7 @@ export class UserService {
   ) {}
 
   async create(
-    file: any,
+    files: Array<Express.Multer.File>,
     createUserDto: CreateUserDto,
     ip: string,
   ): Promise<UserDocument> {
@@ -52,20 +52,18 @@ export class UserService {
     }
 
     const verificationCode = randomUUID(); // Tạo mã xác thực
-
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10); // Băm mật khẩu với bcrypt
-    let stringUrls = [];
-
-    if (file) {
-      const result = await this.cloudinaryService.uploadFile(file);
-      // stringUrls = await Promise.all(
-      //   data.map(async (profilePicture) => {
-      //     const result =
-      //       await this.cloudinaryService.uploadFile(profilePicture);
-      //     return result;
-      //   }),
-      // );
-      stringUrls = [result.url];
+    
+    // Xử lý upload nhiều ảnh
+    let profilePictureUrls: string[] = [];
+    if (files && files.length > 0) {
+        // Upload tất cả các ảnh lên Cloudinary
+        profilePictureUrls = await Promise.all(
+            files.map(async (file) => {
+                const result = await this.cloudinaryService.uploadFile(file);
+                return result.url;
+            })
+        );
     }
 
     const createdUser = new this.userModel({
@@ -75,7 +73,7 @@ export class UserService {
         type: 'Point', // Đảm bảo rằng type được cung cấp
         coordinates: [location.longitude, location.latitude], // Sử dụng tọa độ từ vị trí
       },
-      profilePictures: stringUrls,
+      profilePictures: profilePictureUrls, // Lưu mảng URLs của ảnh
       verificationCode, // Lưu mã xác thực vào cơ sở dữ liệu
     });
 
@@ -663,5 +661,102 @@ export class UserService {
           : null,
       isOnline: matchUser.isOnline,
     };
+  }
+
+  async findAll() {
+    return this.userModel.find().exec();
+  }
+
+  async countUsers() {
+    return this.userModel.countDocuments();
+  }
+
+  async countVerifiedUsers() {
+    return this.userModel.countDocuments({ isVerified: true });
+  }
+
+  async countOnlineUsers() {
+    return this.userModel.countDocuments({ isOnline: true });
+  }
+
+  async countTodayNewUsers() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return this.userModel.countDocuments({
+      createdAt: { $gte: today }
+    });
+  }
+
+  async deleteUser(userId: string) {
+    return this.userModel.findByIdAndDelete(userId);
+  }
+
+  async getUserGrowth() {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const users = await this.userModel.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: thirtyDaysAgo }
+        }
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { _id: 1 }
+      }
+    ]);
+
+    return users.map(item => ({
+      date: item._id,
+      count: item.count
+    }));
+  }
+
+  async getGenderDistribution() {
+    const distribution = await this.userModel.aggregate([
+      {
+        $group: {
+          _id: "$gender",
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const result = {
+      male: 0,
+      female: 0,
+      other: 0
+    };
+
+    distribution.forEach(item => {
+      result[item._id] = item.count;
+    });
+
+    return result;
+  }
+
+  async getAgeGroups() {
+    const users = await this.userModel.find({}, 'age');
+    const ageGroups = {
+      '18-24': 0,
+      '25-34': 0,
+      '35-44': 0,
+      '45+': 0
+    };
+
+    users.forEach(user => {
+      if (user.age <= 24) ageGroups['18-24']++;
+      else if (user.age <= 34) ageGroups['25-34']++;
+      else if (user.age <= 44) ageGroups['35-44']++;
+      else ageGroups['45+']++;
+    });
+
+    return ageGroups;
   }
 }

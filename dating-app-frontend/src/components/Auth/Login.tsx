@@ -2,6 +2,7 @@ import { useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSubmitLogin } from "./hooks/useLogin";
 import { SocketContext } from "../../SocketContext";
+import { toast } from 'react-toastify';
 
 export type LoginType = {
   setIsLoggedIn: React.Dispatch<React.SetStateAction<boolean>>;
@@ -31,11 +32,16 @@ const Login = ({ setIsLoggedIn, setUserId }: LoginType) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const data = await submit.mutateAsync({
-      email,
-      password,
-    });
-    console.log(data);
+    try {
+      const data = await submit.mutateAsync({
+        email,
+        password,
+      });
+  
+      toast.success('Đăng nhập thành công!');
+    } catch (err) {
+      toast.error('Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin!');
+    }
   };
 
   return (

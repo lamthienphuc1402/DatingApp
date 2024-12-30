@@ -27,7 +27,6 @@ export const useSubmitRegister = (
             return result.data;
         },
         onSuccess(data) {
-            alert("Đăng ký thành công! Vui lòng đăng nhập.");
             navigate("/login");
         },
         onError(error: any) {

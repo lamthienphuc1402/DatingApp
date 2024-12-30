@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { LocationService } from './location-service/location-service.service';
 import { ChatModule } from './chat/chat.module';
 import { ConfigModule } from '@nestjs/config';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { ConfigModule } from '@nestjs/config';
     UserModule,
     AuthModule,
     ChatModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService, LocationService],

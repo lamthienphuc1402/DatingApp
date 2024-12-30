@@ -32,15 +32,14 @@ export class UserController {
   ) {}
 
   @Post('register')
-  @UseInterceptors(FileInterceptor('profilePictures'))
+  @UseInterceptors(FilesInterceptor('profilePictures', 3))
   async register(
-    @UploadedFile() file,
+    @UploadedFiles() files: Array<Express.Multer.File>,
     @Body() createUserDto: CreateUserDto,
     @Request() req,
   ) {
-    console.log('File: ');
-    console.log(file);
-    return this.userService.create(file, createUserDto, req.ip); // Truyền IP vào UserService
+    console.log('Files: ', files);
+    return this.userService.create(files, createUserDto, req.ip);
   }
 
   @Post('login')

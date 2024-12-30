@@ -2,6 +2,7 @@ import React, {useState, useEffect} from 'react';
 import axios from 'axios';
 import {useEditProfile} from "./hooks/useEditProfile.ts";
 import LocationSelector from '../LocationSelector';
+import { toast } from 'react-toastify';
 
 interface UserData {
     name: string;
@@ -164,6 +165,7 @@ const UserProfileEdit = ({userId, onUpdate}: { userId: string; onUpdate: () => v
 
 
         await edit.mutateAsync(formData);
+        toast.success('Cập nhật thông tin thành công!');
     };
 
     const removePreviewImage = (index: number) => {
