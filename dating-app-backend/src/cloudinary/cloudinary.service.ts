@@ -21,4 +21,18 @@ export class CloudinaryService {
       streamifier.createReadStream(file.buffer).pipe(uploadStream);
     });
   }
+  deleteImage(publicId: string) {
+    console.log(publicId);
+    cloudinary.uploader.destroy(
+      `profileImage/${publicId}`,
+      {},
+      (error, result) => {
+        if (error) {
+          console.log(error);
+        }
+        console.log(result);
+        return result;
+      },
+    );
+  }
 }
