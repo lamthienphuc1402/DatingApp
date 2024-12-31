@@ -41,11 +41,14 @@ const AdminUsers = () => {
   const handleDeleteUser = async (userId: string) => {
     if (window.confirm("Bạn có chắc chắn muốn xóa người dùng này?")) {
       try {
-        await axios.delete(`http://localhost:3000/admin/users/${userId}`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
-          },
-        });
+        await axios.delete(
+          `${import.meta.env.VITE_LOCAL_API_URL}/admin/users/${userId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+            },
+          }
+        );
         toast.success("Xóa người dùng thành công");
         fetchUsers();
       } catch (error) {

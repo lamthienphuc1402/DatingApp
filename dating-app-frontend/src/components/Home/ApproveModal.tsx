@@ -19,8 +19,12 @@ const ApproveModal = ({ fromUser, targetUser, socket }: any) => {
   useEffect(() => {
     const fetchData = async () => {
       const [responseFromUser, responseTargetUser] = await Promise.all([
-        await axios.get(`http://localhost:3000/users/${fromUser}`),
-        await axios.get(`http://localhost:3000/users/${targetUser}`),
+        await axios.get(
+          `${import.meta.env.VITE_LOCAL_API_URL}/users/${fromUser}`
+        ),
+        await axios.get(
+          `${import.meta.env.VITE_LOCAL_API_URL}/users/${targetUser}`
+        ),
       ]);
       setFromUserData(responseFromUser.data);
       setTargetUserData(responseTargetUser.data);

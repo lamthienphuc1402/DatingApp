@@ -25,7 +25,7 @@ const MatchedUsersList = () => {
     try {
       const userId = JSON.parse(localStorage.getItem("user") || "{}")._id;
       const response = await axios.get(
-        `http://localhost:3000/users/${userId}/matches`,
+        `${import.meta.env.VITE_LOCAL_API_URL}/users/${userId}/matches`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,

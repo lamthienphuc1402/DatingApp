@@ -60,7 +60,7 @@ const AdminManagement = () => {
     try {
       if (editingAdmin) {
         await axios.put(
-          `http://localhost:3000/admin/${editingAdmin._id}`,
+          `${import.meta.env.VITE_LOCAL_API_URL}/admin/${editingAdmin._id}`,
           formData,
           {
             headers: {
@@ -70,11 +70,15 @@ const AdminManagement = () => {
         );
         toast.success("Cập nhật quản trị viên thành công");
       } else {
-        await axios.post("http://localhost:3000/admin/register", formData, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
-          },
-        });
+        await axios.post(
+          "${import.meta.env.VITE_LOCAL_API_URL}/admin/register",
+          formData,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+            },
+          }
+        );
         toast.success("Thêm quản trị viên thành công");
       }
       setShowAddForm(false);
@@ -99,11 +103,14 @@ const AdminManagement = () => {
   const handleDelete = async (adminId: string) => {
     if (window.confirm("Bạn có chắc chắn muốn xóa quản trị viên này?")) {
       try {
-        await axios.delete(`http://localhost:3000/admin/${adminId}`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
-          },
-        });
+        await axios.delete(
+          `${import.meta.env.VITE_LOCAL_API_URL}/admin/${adminId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+            },
+          }
+        );
         toast.success("Xóa quản trị viên thành công");
         fetchAdmins();
       } catch (error) {

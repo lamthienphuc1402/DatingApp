@@ -69,7 +69,7 @@ const UserProfileEdit = ({
     const fetchUserData = async () => {
       try {
         const response = await axios.get(
-          `http://localhost:3000/users/${userId}`,
+          `${import.meta.env.VITE_LOCAL_API_URL}/users/${userId}`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
