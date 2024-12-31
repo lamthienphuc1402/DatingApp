@@ -20,7 +20,7 @@ const AdminLogin = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await axios.post('http://localhost:3000/admin/login', credentials);
+      const response = await axios.post(`${import.meta.env.VITE_LOCAL_API_URL}/admin/login`, credentials);
       localStorage.setItem('adminToken', response.data.access_token);
       toast.success('Đăng nhập thành công!');
       navigate('/admin');

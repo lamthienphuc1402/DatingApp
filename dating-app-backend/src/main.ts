@@ -8,7 +8,7 @@ async function bootstrap() {
 
   // Cấu hình CORS
   app.use(cors({
-    origin: 'http://localhost:5173', // Thay đổi nếu cần thiết
+    origin: process.env.ENDPOINT_URL, // Thay đổi nếu cần thiết
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   }));
