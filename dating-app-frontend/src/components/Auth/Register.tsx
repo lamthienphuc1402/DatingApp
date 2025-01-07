@@ -33,7 +33,7 @@ const Register = ({ setIsLoggedIn, setUserId }: RegisterType) => {
     const [tags, setTags] = useState<Tag[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [formErrors, setFormErrors] = useState<{[key: string]: string}>({});
+    const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
 
     const submit = useSubmitRegister(setError, navigate);
 
@@ -89,15 +89,31 @@ const Register = ({ setIsLoggedIn, setUserId }: RegisterType) => {
     };
 
     const validateForm = () => {
-        const errors: {[key: string]: string} = {};
-        
+        const errors: { [key: string]: string } = {};
+
         // Validate thông tin cơ bản
         if (!userData.name.trim()) errors.name = 'Vui lòng nhập tên';
         if (!userData.email.trim()) errors.email = 'Vui lòng nhập email';
         if (!userData.password.trim()) errors.password = 'Vui lòng nhập mật khẩu';
         if (!userData.age) errors.age = 'Vui lòng nhập tuổi';
         if (!userData.zodiacSign) errors.zodiacSign = 'Vui lòng chọn cung hoàng đạo';
-        
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (userData.email && !emailRegex.test(userData.email)) {
+            errors.email = 'Email không hợp lệ';
+        }
+
+        // Validate age
+        if (userData.age && (parseInt(userData.age) < 18 || parseInt(userData.age) > 100)) {
+            errors.age = 'Tuổi phải từ 18 đến 100';
+        }
+
+        // Validate password length
+        if (userData.password && userData.password.length < 6) {
+            errors.password = 'Mật khẩu phải có ít nhất 6 ký tự';
+        }
+
         // Validate ít nhất 1 ảnh
         if (profilePictures.length === 0) {
             errors.photos = 'Vui lòng tải lên ít nhất 1 ảnh';
@@ -109,7 +125,7 @@ const Register = ({ setIsLoggedIn, setUserId }: RegisterType) => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         // Validate form trước khi submit
         if (!validateForm()) {
             toast.error('Vui lòng điền đầy đủ thông tin bắt buộc');
@@ -193,10 +209,8 @@ const Register = ({ setIsLoggedIn, setUserId }: RegisterType) => {
                                     name="name"
                                     value={userData.name}
                                     onChange={handleChange}
-                                    className={`w-full px-4 py-2 rounded-lg border ${
-                                        formErrors.name ? 'border-red-500' : 'border-gray-300'
-                                    } bg-white text-black focus:ring-2 focus:ring-purple-500 transition-all duration-200`}
-                                    required
+                                    className={`w-full px-4 py-2 rounded-lg border ${formErrors.name ? 'border-red-500' : 'border-gray-300'
+                                        } bg-white text-black focus:ring-2 focus:ring-purple-500 transition-all duration-200`}
                                 />
                                 {formErrors.name && (
                                     <p className="text-red-500 text-sm mt-1">
@@ -207,42 +221,72 @@ const Register = ({ setIsLoggedIn, setUserId }: RegisterType) => {
                             </div>
 
                             <div className="form-group">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <i className="fas fa-envelope mr-2 text-purple-500"></i>
+                                    Email
+                                </label>
                                 <input
-                                    type="email"
                                     name="email"
                                     value={userData.email}
                                     onChange={handleChange}
-                                    className="w-full px-4 py-2 rounded-lg border bg-white text-black focus:ring-2 focus:ring-purple-500"
-                                    required
+                                    className={`w-full px-4 py-2 rounded-lg border ${formErrors.email ? 'border-red-500' : 'border-gray-300'
+                                        } bg-white text-black focus:ring-2 focus:ring-purple-500`}
                                 />
+                                {formErrors.email && (
+                                    <p className="text-red-500 text-sm mt-1">
+                                        <i className="fas fa-exclamation-circle mr-1"></i>
+                                        {formErrors.email}
+                                    </p>
+                                )}
                             </div>
 
                             <div className="form-group">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <i className="fas fa-lock mr-2 text-purple-500"></i>
+                                    Mật khẩu
+                                </label>
                                 <input
                                     type="password"
                                     name="password"
                                     value={userData.password}
                                     onChange={handleChange}
-                                    className="w-full px-4 py-2 rounded-lg border bg-white text-black focus:ring-2 focus:ring-purple-500"
-                                    required
+                                    className={`w-full px-4 py-2 rounded-lg border ${formErrors.password ? 'border-red-500' : 'border-gray-300'
+                                        } bg-white text-black focus:ring-2 focus:ring-purple-500`}
                                 />
+                                {formErrors.password && (
+                                    <p className="text-red-500 text-sm mt-1">
+                                        <i className="fas fa-exclamation-circle mr-1"></i>
+                                        {formErrors.password}
+                                    </p>
+                                )}
                             </div>
 
                             <div className="form-group">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Tuổi</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <i className="fas fa-birthday-cake mr-2 text-purple-500"></i>
+                                    Tuổi
+                                </label>
                                 <input
                                     type="number"
                                     name="age"
                                     value={userData.age}
                                     onChange={handleChange}
-                                    className="w-full px-4 py-2 rounded-lg border bg-white text-black focus:ring-2 focus:ring-purple-500"
+                                    className={`w-full px-4 py-2 rounded-lg border ${formErrors.age ? 'border-red-500' : 'border-gray-300'
+                                        } bg-white text-black focus:ring-2 focus:ring-purple-500`}
                                 />
+                                {formErrors.age && (
+                                    <p className="text-red-500 text-sm mt-1">
+                                        <i className="fas fa-exclamation-circle mr-1"></i>
+                                        {formErrors.age}
+                                    </p>
+                                )}
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="form-group">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Giới tính</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        <i className="fas fa-venus-mars mr-2 text-purple-500"></i>
+                                        Giới tính
+                                    </label>
                                     <select
                                         name="gender"
                                         value={userData.gender}
@@ -256,7 +300,10 @@ const Register = ({ setIsLoggedIn, setUserId }: RegisterType) => {
                                 </div>
 
                                 <div className="form-group">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Xu hướng tính dục</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        <i className="fas fa-heart mr-2 text-purple-500"></i>
+                                        Xu hướng tính dục
+                                    </label>
                                     <select
                                         name="genderPreference"
                                         value={userData.genderPreference}
@@ -271,7 +318,8 @@ const Register = ({ setIsLoggedIn, setUserId }: RegisterType) => {
                             </div>
                             <div className="form-group">
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    <i className="fas fa-heart mr-2 text-purple-500"></i>Sở thích
+                                    <i className="fas fa-star mr-2 text-purple-500"></i>
+                                    Sở thích
                                 </label>
                                 <div className="flex flex-wrap gap-2 p-2 border border-purple-200 rounded-xl bg-white">
                                     {/* Tags container */}
@@ -317,6 +365,34 @@ const Register = ({ setIsLoggedIn, setUserId }: RegisterType) => {
                                 </p>
                             </div>
 
+                            <div className="form-group">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <i className="fas fa-moon mr-2 text-purple-500"></i>
+                                    Cung hoàng đạo
+                                </label>
+                                <select
+                                    name="zodiacSign"
+                                    value={userData.zodiacSign}
+                                    onChange={handleChange}
+                                    className={`w-full px-4 py-2 rounded-lg border ${
+                                        formErrors.zodiacSign ? 'border-red-500' : 'border-gray-300'
+                                    } bg-white text-black focus:ring-2 focus:ring-purple-500`}
+                                >
+                                    <option value="">Chọn cung hoàng đạo</option>
+                                    {ZODIAC_SIGNS.map((sign) => (
+                                        <option key={sign} value={sign}>
+                                            {sign}
+                                        </option>
+                                    ))}
+                                </select>
+                                {formErrors.zodiacSign && (
+                                    <p className="text-red-500 text-sm mt-1">
+                                        <i className="fas fa-exclamation-circle mr-1"></i>
+                                        {formErrors.zodiacSign}
+                                    </p>
+                                )}
+                            </div>
+
                         </div>
 
 
@@ -328,7 +404,10 @@ const Register = ({ setIsLoggedIn, setUserId }: RegisterType) => {
                             </h3>
 
                             <div className="form-group">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Tiểu sử</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <i className="fas fa-book mr-2 text-purple-500"></i>
+                                    Tiểu sử
+                                </label>
                                 <textarea
                                     name="bio"
                                     value={userData.bio}
@@ -339,26 +418,10 @@ const Register = ({ setIsLoggedIn, setUserId }: RegisterType) => {
                             </div>
 
                             <div className="form-group">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Cung hoàng đạo</label>
-                                <select
-                                    name="zodiacSign"
-                                    value={userData.zodiacSign}
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-2 rounded-lg border bg-white text-black focus:ring-2 focus:ring-purple-500"
-                                    
-                                >
-                                    <option value="">Chọn cung hoàng đạo</option>
-                                    {ZODIAC_SIGNS.map((sign) => (
-                                        <option key={sign} value={sign}>
-                                            {sign}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-
-                            <div className="form-group">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Học vấn</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <i className="fas fa-graduation-cap mr-2 text-purple-500"></i>
+                                    Học vấn
+                                </label>
                                 <input
                                     type="text"
                                     name="education"
@@ -369,7 +432,10 @@ const Register = ({ setIsLoggedIn, setUserId }: RegisterType) => {
                             </div>
 
                             <div className="form-group">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Bạn thường làm gì khi rảnh?</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <i className="fas fa-gamepad mr-2 text-purple-500"></i>
+                                    Bạn thường làm gì khi rảnh?
+                                </label>
                                 <input
                                     type="text"
                                     name="hobbies"
@@ -381,18 +447,19 @@ const Register = ({ setIsLoggedIn, setUserId }: RegisterType) => {
                             {/* Phần upload ảnh */}
                             <div className="form-group">
                                 <h3 className="text-xl font-semibold text-purple-600 mb-2">Ảnh cá nhân</h3>
-                                <div className="grid grid-cols-3 gap-2">
+                                <div className={`grid grid-cols-3 gap-2 ${formErrors.photos ? 'border-2 border-red-500 rounded-lg p-2' : ''}`}>
                                     {/* Avatar slot - luôn là ảnh đầu tiên */}
                                     <div className="relative group">
                                         <img
                                             src={previewUrls[0] || 'https://via.placeholder.com/150'}
                                             alt="Avatar"
-                                            className="w-full h-32 object-cover rounded-lg border-2 border-purple-500"
+                                            className={`w-full h-32 object-cover rounded-lg ${!previewUrls[0] ? 'border-2 border-dashed' : 'border-2'
+                                                } ${formErrors.photos ? 'border-red-500' : 'border-purple-500'}`}
                                         />
                                         <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
                                             <label htmlFor="profile-picture" className="cursor-pointer text-white text-sm text-center">
                                                 <i className="fas fa-user-circle text-xl mb-1"></i>
-                                                <br/>Ảnh đại diện
+                                                <br />Ảnh đại diện
                                             </label>
                                         </div>
                                         {previewUrls[0] && (
@@ -412,12 +479,13 @@ const Register = ({ setIsLoggedIn, setUserId }: RegisterType) => {
                                             <img
                                                 src={previewUrls[index] || 'https://via.placeholder.com/150'}
                                                 alt={`Photo ${index + 1}`}
-                                                className="w-full h-32 object-cover rounded-lg border border-gray-300"
+                                                className={`w-full h-32 object-cover rounded-lg ${!previewUrls[index] ? 'border-2 border-dashed' : 'border'
+                                                    } ${formErrors.photos ? 'border-red-500' : 'border-gray-300'}`}
                                             />
                                             <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg opacity-0 group-hover:opacity-100">
                                                 <label htmlFor={`additional-photo-${index}`} className="cursor-pointer text-white text-sm text-center">
                                                     <i className="fas fa-plus text-xl mb-1"></i>
-                                                    <br/>Thêm ảnh
+                                                    <br />Thêm ảnh
                                                 </label>
                                             </div>
                                             {previewUrls[index] && (
@@ -432,7 +500,6 @@ const Register = ({ setIsLoggedIn, setUserId }: RegisterType) => {
                                         </div>
                                     ))}
                                 </div>
-
                                 {/* Hidden file inputs */}
                                 <input
                                     id="profile-picture"
@@ -451,9 +518,16 @@ const Register = ({ setIsLoggedIn, setUserId }: RegisterType) => {
                                         className="hidden"
                                     />
                                 ))}
+                                {formErrors.photos && (
+                                    <p className="text-red-500 text-sm mt-2">
+                                        <i className="fas fa-exclamation-circle mr-1"></i>
+                                        {formErrors.photos}
+                                    </p>
+                                )}
                                 <p className="text-sm text-gray-500 mt-1">
                                     Tải lên tối đa 3 ảnh. Ảnh đầu tiên sẽ là ảnh đại diện.
                                 </p>
+
                             </div>
                         </div>
 
@@ -464,9 +538,8 @@ const Register = ({ setIsLoggedIn, setUserId }: RegisterType) => {
                     <button
                         type="submit"
                         disabled={isSubmitting}
-                        className={`w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-3 px-4 rounded-full transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50 ${
-                            isSubmitting ? 'opacity-75 cursor-not-allowed' : ''
-                        }`}
+                        className={`w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-3 px-4 rounded-full transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50 ${isSubmitting ? 'opacity-75 cursor-not-allowed' : ''
+                            }`}
                     >
                         {isSubmitting ? (
                             <>
