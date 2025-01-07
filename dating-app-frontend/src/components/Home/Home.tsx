@@ -350,6 +350,11 @@ const Home = ({
     };
   }, [currentPhotoIndex, currentIndex, viewMode]);
 
+  const handleSettingsChanged = useCallback(() => {
+    const userData = JSON.parse(localStorage.getItem("user") || "{}");
+    fetchUserIdAndNearbyUsers(localStorage.getItem("token") || "", userData._id);
+  }, []);
+
   return (
     <>
       <ApproveNotice
@@ -402,7 +407,7 @@ const Home = ({
                 <div className="flex items-center gap-2 sm:gap-3">
                   <span className={`text-xs sm:text-sm ${viewMode === 'list' ? 'text-gray-800' : 'text-gray-400'}`}>
                     <i className="fas fa-th-large mr-1 hidden sm:inline"></i>
-                    <span className="sm:hidden">List</span>
+                    <span className="sm:hidden">Danh sách</span>
                     <span className="hidden sm:inline">Danh sách</span>
                   </span>
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -416,7 +421,7 @@ const Home = ({
                   </label>
                   <span className={`text-xs sm:text-sm ${viewMode === 'swipe' ? 'text-gray-800' : 'text-gray-400'}`}>
                     <i className="fas fa-hand-pointer mr-1 hidden sm:inline"></i>
-                    <span className="sm:hidden">Swipe</span>
+                    <span className="sm:hidden">Quẹt</span>
                     <span className="hidden sm:inline">Quẹt</span>
                   </span>
                 </div>
@@ -432,11 +437,10 @@ const Home = ({
             </div>
           </div>
 
-          {/* Settings Modal - keeping existing code */}
+          {/* Settings Modal */}
           {showSettings && (
             <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
               <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto animate-modal-slide-up">
-                {/* Close button */}
                 <button
                   onClick={() => setShowSettings(false)}
                   className="absolute right-4 top-4 z-10 p-2 bg-white hover:bg-gray-100/10 rounded-full transition-colors"
@@ -444,8 +448,10 @@ const Home = ({
                   <i className="fas fa-times text-xl text-gray-600"></i>
                 </button>
 
-                {/* SearchSettings component */}
-                <SearchSettings onClose={() => setShowSettings(false)} />
+                <SearchSettings 
+                  onClose={() => setShowSettings(false)}
+                  onSettingsChanged={handleSettingsChanged}
+                />
               </div>
             </div>
           )}

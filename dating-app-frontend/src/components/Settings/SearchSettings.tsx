@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 
 interface SearchPreferences {
   prioritizeInterests: boolean;
@@ -19,7 +20,12 @@ const defaultPreferences: SearchPreferences = {
   searchDistance: 100
 };
 
-const SearchSettings = () => {
+interface SearchSettingsProps {
+  onClose: () => void;
+  onSettingsChanged?: () => void;
+}
+
+const SearchSettings = ({ onClose, onSettingsChanged }: SearchSettingsProps) => {
   const [preferences, setPreferences] = useState<SearchPreferences>(() => {
     const savedPrefs = localStorage.getItem('searchPreferences');
     return savedPrefs ? JSON.parse(savedPrefs) : defaultPreferences;
@@ -57,9 +63,30 @@ const SearchSettings = () => {
       );
       
       setIsDirty(false);
-      alert('Đã lưu thay đổi thành công!');
+      
+      // Hiển thị toast thông báo thành công
+      toast.success('Đã lưu thay đổi thành công!', {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+
+      // Gọi callback để reload danh sách người dùng
+      if (onSettingsChanged) {
+        onSettingsChanged();
+      }
+      
+      // Đóng modal settings
+      onClose();
+
     } catch (error) {
-      alert('Có lỗi xảy ra khi lưu thay đổi');
+      toast.error('Có lỗi xảy ra khi lưu thay đổi', {
+        position: "top-right",
+        autoClose: 3000,
+      });
     } finally {
       setIsSaving(false);
     }
@@ -114,7 +141,7 @@ const SearchSettings = () => {
             />
             <div className="ml-4">
               <label className="font-medium text-gray-800">Ưu tiên độ tuổi gần nhau</label>
-              <p className="text-sm text-gray-600">Tìm người có đ�� tuổi gần nhau với bạn</p>
+              <p className="text-sm text-gray-600">Tìm người có độ tuổi gần nhau với bạn</p>
             </div>
           </div>
 

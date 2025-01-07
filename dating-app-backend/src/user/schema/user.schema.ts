@@ -111,9 +111,9 @@ export class User {
       prioritizeOnline: true,
     },
   })
+  searchPreferences: Record<string, boolean>;
   @Prop({ type: Array, default: [] })
   notification: Array<any>;
-  searchPreferences: Record<string, boolean>;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
