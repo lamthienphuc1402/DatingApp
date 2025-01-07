@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { toast } from 'react-toastify';
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { toast } from "react-toastify";
 
 interface User {
   _id: string;
@@ -14,7 +14,7 @@ interface User {
 const AdminUsers = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     fetchUsers();
@@ -22,38 +22,45 @@ const AdminUsers = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await axios.get('http://localhost:3000/admin/users', {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('adminToken')}`,
-        },
-      });
+      const response = await axios.get(
+        `${import.meta.env.VITE_LOCAL_API_URL}/admin/users`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+          },
+        }
+      );
       setUsers(response.data);
     } catch (error) {
-      toast.error('Không thể tải danh sách người dùng');
+      toast.error("Không thể tải danh sách người dùng");
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa người dùng này?')) {
+    if (window.confirm("Bạn có chắc chắn muốn xóa người dùng này?")) {
       try {
-        await axios.delete(`http://localhost:3000/admin/users/${userId}`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('adminToken')}`,
-          },
-        });
-        toast.success('Xóa người dùng thành công');
+        await axios.delete(
+          `${import.meta.env.VITE_LOCAL_API_URL}/admin/users/${userId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+            },
+          }
+        );
+        toast.success("Xóa người dùng thành công");
         fetchUsers();
       } catch (error) {
-        toast.error('Không thể xóa người dùng');
+        toast.error("Không thể xóa người dùng");
       }
     }
   };
 
-  const filteredUsers = users.filter(user =>
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredUsers = users.filter(
+    (user) =>
+      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (loading) {
@@ -102,21 +109,27 @@ const AdminUsers = () => {
             {filteredUsers.map((user) => (
               <tr key={user._id}>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                  <div className="text-sm font-medium text-gray-900">
+                    {user.name}
+                  </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-500">{user.email}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
-                    <span className={`h-2.5 w-2.5 rounded-full mr-2 ${user.isOnline ? 'bg-green-500' : 'bg-gray-400'}`}></span>
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full mr-2 ${
+                        user.isOnline ? "bg-green-500" : "bg-gray-400"
+                      }`}
+                    ></span>
                     <span className="text-sm text-gray-500">
-                      {user.isOnline ? 'Online' : 'Offline'}
+                      {user.isOnline ? "Online" : "Offline"}
                     </span>
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {new Date(user.createdAt).toLocaleDateString('vi-VN')}
+                  {new Date(user.createdAt).toLocaleDateString("vi-VN")}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <button
@@ -135,4 +148,4 @@ const AdminUsers = () => {
   );
 };
 
-export default AdminUsers; 
+export default AdminUsers;

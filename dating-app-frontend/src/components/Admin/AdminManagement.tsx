@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { toast } from 'react-toastify';
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { toast } from "react-toastify";
 
 interface Admin {
   _id: string;
@@ -21,9 +21,9 @@ const AdminManagement = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingAdmin, setEditingAdmin] = useState<Admin | null>(null);
   const [formData, setFormData] = useState<AdminFormData>({
-    username: '',
-    email: '',
-    password: '',
+    username: "",
+    email: "",
+    password: "",
   });
 
   useEffect(() => {
@@ -32,14 +32,17 @@ const AdminManagement = () => {
 
   const fetchAdmins = async () => {
     try {
-      const response = await axios.get('http://localhost:3000/admin/all', {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('adminToken')}`,
-        },
-      });
+      const response = await axios.get(
+        `${import.meta.env.VITE_LOCAL_API_URL}/admin/all`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+          },
+        }
+      );
       setAdmins(response.data);
     } catch (error) {
-      toast.error('Không thể tải danh sách quản trị viên');
+      toast.error("Không thể tải danh sách quản trị viên");
     } finally {
       setLoading(false);
     }
@@ -57,29 +60,33 @@ const AdminManagement = () => {
     try {
       if (editingAdmin) {
         await axios.put(
-          `http://localhost:3000/admin/${editingAdmin._id}`,
+          `${import.meta.env.VITE_LOCAL_API_URL}/admin/${editingAdmin._id}`,
           formData,
           {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem('adminToken')}`,
+              Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
             },
           }
         );
-        toast.success('Cập nhật quản trị viên thành công');
+        toast.success("Cập nhật quản trị viên thành công");
       } else {
-        await axios.post('http://localhost:3000/admin/register', formData, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('adminToken')}`,
-          },
-        });
-        toast.success('Thêm quản trị viên thành công');
+        await axios.post(
+          "${import.meta.env.VITE_LOCAL_API_URL}/admin/register",
+          formData,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+            },
+          }
+        );
+        toast.success("Thêm quản trị viên thành công");
       }
       setShowAddForm(false);
       setEditingAdmin(null);
-      setFormData({ username: '', email: '', password: '' });
+      setFormData({ username: "", email: "", password: "" });
       fetchAdmins();
     } catch (error) {
-      toast.error('Có lỗi xảy ra');
+      toast.error("Có lỗi xảy ra");
     }
   };
 
@@ -88,23 +95,26 @@ const AdminManagement = () => {
     setFormData({
       username: admin.username,
       email: admin.email,
-      password: '', // Password field empty when editing
+      password: "", // Password field empty when editing
     });
     setShowAddForm(true);
   };
 
   const handleDelete = async (adminId: string) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa quản trị viên này?')) {
+    if (window.confirm("Bạn có chắc chắn muốn xóa quản trị viên này?")) {
       try {
-        await axios.delete(`http://localhost:3000/admin/${adminId}`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('adminToken')}`,
-          },
-        });
-        toast.success('Xóa quản trị viên thành công');
+        await axios.delete(
+          `${import.meta.env.VITE_LOCAL_API_URL}/admin/${adminId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+            },
+          }
+        );
+        toast.success("Xóa quản trị viên thành công");
         fetchAdmins();
       } catch (error) {
-        toast.error('Không thể xóa quản trị viên');
+        toast.error("Không thể xóa quản trị viên");
       }
     }
   };
@@ -125,18 +135,18 @@ const AdminManagement = () => {
           onClick={() => {
             setShowAddForm(!showAddForm);
             setEditingAdmin(null);
-            setFormData({ username: '', email: '', password: '' });
+            setFormData({ username: "", email: "", password: "" });
           }}
           className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
         >
-          {showAddForm ? 'Hủy' : 'Thêm QTV'}
+          {showAddForm ? "Hủy" : "Thêm QTV"}
         </button>
       </div>
 
       {showAddForm && (
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-lg font-semibold mb-4">
-            {editingAdmin ? 'Cập nhật QTV' : 'Thêm QTV mới'}
+            {editingAdmin ? "Cập nhật QTV" : "Thêm QTV mới"}
           </h3>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -167,7 +177,7 @@ const AdminManagement = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Mật khẩu {editingAdmin && '(để trống nếu không thay đổi)'}
+                Mật khẩu {editingAdmin && "(để trống nếu không thay đổi)"}
               </label>
               <input
                 type="password"
@@ -182,7 +192,7 @@ const AdminManagement = () => {
               type="submit"
               className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
             >
-              {editingAdmin ? 'Cập nhật' : 'Thêm mới'}
+              {editingAdmin ? "Cập nhật" : "Thêm mới"}
             </button>
           </form>
         </div>
@@ -218,7 +228,7 @@ const AdminManagement = () => {
                   <div className="text-sm text-gray-500">{admin.email}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {new Date(admin.createdAt).toLocaleDateString('vi-VN')}
+                  {new Date(admin.createdAt).toLocaleDateString("vi-VN")}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <button
@@ -243,4 +253,4 @@ const AdminManagement = () => {
   );
 };
 
-export default AdminManagement; 
+export default AdminManagement;

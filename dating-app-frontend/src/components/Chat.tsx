@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { format, parseISO } from "date-fns";
-import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
+import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
 
 // Định nghĩa kiểu cho tin nhắn
 interface Message {
@@ -38,7 +38,10 @@ const Chat: React.FC<ChatProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [showReactionPicker, setShowReactionPicker] = useState<{messageId: string, show: boolean}>({messageId: '', show: false});
+  const [showReactionPicker, setShowReactionPicker] = useState<{
+    messageId: string;
+    show: boolean;
+  }>({ messageId: "", show: false });
 
   useEffect(() => {
     fetchMessages();
@@ -55,25 +58,32 @@ const Chat: React.FC<ChatProps> = ({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      if (!target.closest('.EmojiPickerReact') && !target.closest('.emoji-button')&& !target.closest('.emoji')) {
+      if (
+        !target.closest(".EmojiPickerReact") &&
+        !target.closest(".emoji-button") &&
+        !target.closest(".emoji")
+      ) {
         setShowEmojiPicker(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      if (!target.closest('.EmojiPickerReact') && !target.closest('.reaction-button')) {
-        setShowReactionPicker({messageId: '', show: false});
+      if (
+        !target.closest(".EmojiPickerReact") &&
+        !target.closest(".reaction-button")
+      ) {
+        setShowReactionPicker({ messageId: "", show: false });
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const scrollToBottom = () => {
@@ -83,7 +93,9 @@ const Chat: React.FC<ChatProps> = ({
   const fetchMessages = async () => {
     try {
       const response = await axios.get(
-        `http://localhost:3000/chat/messages?userId1=${userId}&userId2=${targetUserId}`,
+        `${
+          import.meta.env.VITE_LOCAL_API_URL
+        }/chat/messages?userId1=${userId}&userId2=${targetUserId}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -101,7 +113,7 @@ const Chat: React.FC<ChatProps> = ({
     if (!newMessage.trim()) return;
     try {
       const response = await axios.post(
-        `http://localhost:3000/chat/send`,
+        `${import.meta.env.VITE_LOCAL_API_URL}/chat/send`,
         {
           senderId: userId,
           receiverId: targetUserId,
@@ -136,16 +148,18 @@ const Chat: React.FC<ChatProps> = ({
   };
 
   const onEmojiClick = (emojiData: EmojiClickData) => {
-    setNewMessage(prev => prev + emojiData.emoji);
+    setNewMessage((prev) => prev + emojiData.emoji);
   };
 
   const handleReaction = async (messageId: string, emoji: string) => {
     try {
       const response = await axios.post(
-        `http://localhost:3000/chat/messages/${messageId}/reactions`,
+        `${
+          import.meta.env.VITE_LOCAL_API_URL
+        }/chat/messages/${messageId}/reactions`,
         {
           userId,
-          emoji
+          emoji,
         },
         {
           headers: {
@@ -153,14 +167,16 @@ const Chat: React.FC<ChatProps> = ({
           },
         }
       );
-      
-      setMessages(prevMessages => 
-        prevMessages.map(msg => 
-          msg._id === messageId ? {...msg, reactions: response.data.reactions} : msg
+
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) =>
+          msg._id === messageId
+            ? { ...msg, reactions: response.data.reactions }
+            : msg
         )
       );
-      
-      setShowReactionPicker({messageId: '', show: false});
+
+      setShowReactionPicker({ messageId: "", show: false });
     } catch (err) {
       setError("Không thể thêm reaction.");
     }
@@ -196,7 +212,11 @@ const Chat: React.FC<ChatProps> = ({
               alt={targetUserName}
               className="w-10 h-10 rounded-full border-2 border-white"
             />
-            <span className={`absolute bottom-0 right-0 w-3 h-3 ${targetUserIsOnline ? "bg-green-400" : "bg-gray-400"} border-2 border-white rounded-full`}></span>
+            <span
+              className={`absolute bottom-0 right-0 w-3 h-3 ${
+                targetUserIsOnline ? "bg-green-400" : "bg-gray-400"
+              } border-2 border-white rounded-full`}
+            ></span>
           </div>
           <div className="ml-3">
             <h3 className="font-semibold text-white">{targetUserName}</h3>
@@ -208,12 +228,17 @@ const Chat: React.FC<ChatProps> = ({
       </div>
 
       {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50" onScroll={handleScroll}>
+      <div
+        className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50"
+        onScroll={handleScroll}
+      >
         {error && <p className="text-red-500 text-center">{error}</p>}
         {messages.map((message, index) => (
           <div
             key={message._id}
-            className={`flex ${message.senderId === userId ? "justify-end" : "justify-start"}`}
+            className={`flex ${
+              message.senderId === userId ? "justify-end" : "justify-start"
+            }`}
           >
             <div className="relative group max-w-[70%]">
               <div
@@ -231,8 +256,13 @@ const Chat: React.FC<ChatProps> = ({
 
               {/* Chỉ hiển thị nút reaction cho tin nhắn của đối phương */}
               {message.senderId !== userId && (
-                <button 
-                  onClick={() => setShowReactionPicker({messageId: message._id, show: true})}
+                <button
+                  onClick={() =>
+                    setShowReactionPicker({
+                      messageId: message._id,
+                      show: true,
+                    })
+                  }
                   className="reaction-button opacity-0 group-hover:opacity-100 absolute -right-2 -top-2"
                 >
                   😊
@@ -240,35 +270,46 @@ const Chat: React.FC<ChatProps> = ({
               )}
 
               {/* Hiển thị reactions */}
-              {message.reactions && Object.entries(message.reactions).length > 0 && (
-                <div className="reactions-display absolute -bottom-6 left-0 bg-white rounded-full shadow-lg px-2 py-1">
-                  {Object.entries(message.reactions).map(([emoji, users]) => (
-                    <span key={emoji} className="reaction-item" title={users.join(', ')}>
-                      {emoji} {users.length}
-                    </span>
-                  ))}
-                </div>
-              )}
+              {message.reactions &&
+                Object.entries(message.reactions).length > 0 && (
+                  <div className="reactions-display absolute -bottom-6 left-0 bg-white rounded-full shadow-lg px-2 py-1">
+                    {Object.entries(message.reactions).map(([emoji, users]) => (
+                      <span
+                        key={emoji}
+                        className="reaction-item"
+                        title={users.join(", ")}
+                      >
+                        {emoji} {users.length}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
               {/* Điều chỉnh vị trí Emoji Picker */}
-              {showReactionPicker.messageId === message._id && showReactionPicker.show && (
-                <div className="absolute z-[1000]" style={{
-                  left: message.senderId === userId ? 'auto' : '100%',
-                  right: message.senderId === userId ? '100%' : 'auto',
-                  top: '0',
-                  marginLeft: '8px',
-                  marginRight: '8px'
-                }}>
-                  <EmojiPicker
-                    onEmojiClick={(emojiData) => handleReaction(message._id, emojiData.emoji)}
-                    width={250}
-                    height={350}
-                    previewConfig={{
-                      showPreview: false
+              {showReactionPicker.messageId === message._id &&
+                showReactionPicker.show && (
+                  <div
+                    className="absolute z-[1000]"
+                    style={{
+                      left: message.senderId === userId ? "auto" : "100%",
+                      right: message.senderId === userId ? "100%" : "auto",
+                      top: "0",
+                      marginLeft: "8px",
+                      marginRight: "8px",
                     }}
-                  />
-                </div>
-              )}
+                  >
+                    <EmojiPicker
+                      onEmojiClick={(emojiData) =>
+                        handleReaction(message._id, emojiData.emoji)
+                      }
+                      width={250}
+                      height={350}
+                      previewConfig={{
+                        showPreview: false,
+                      }}
+                    />
+                  </div>
+                )}
             </div>
           </div>
         ))}
@@ -303,13 +344,12 @@ const Chat: React.FC<ChatProps> = ({
                       width={250}
                       height={400}
                       previewConfig={{
-                        showPreview: false
+                        showPreview: false,
                       }}
                     />
                   </div>
                 </div>
               )}
-
             </div>
           </div>
           <button

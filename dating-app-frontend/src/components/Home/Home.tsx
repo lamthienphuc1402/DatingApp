@@ -9,7 +9,7 @@ import ApproveNotice from "./ApproveNotice.tsx";
 import LocationUpdateModal from "../LocationUpdateModal";
 import axios from "axios";
 import SearchSettings from "../Settings/SearchSettings.tsx";
-import { useSwipeable } from 'react-swipeable';
+import { useSwipeable } from "react-swipeable";
 
 interface User {
   _id: string;
@@ -181,7 +181,9 @@ const Home = ({
         : { searchDistance: 1000 };
 
       const response = await fetch(
-        `http://localhost:3000/users/nearby/${userId}?maxDistance=${preferences.searchDistance}`,
+        `${
+          import.meta.env.VITE_LOCAL_API_URL
+        }/users/nearby/${userId}?maxDistance=${preferences.searchDistance}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -242,7 +244,7 @@ const Home = ({
       try {
         const userData = JSON.parse(localStorage.getItem("user") || "{}");
         const response = await axios.get(
-          `http://localhost:3000/users/${userData._id}`
+          `${import.meta.env.VITE_LOCAL_API_URL}/users/${userData._id}`
         );
         if (!response.data.city || !response.data.district) {
           setShowLocationModal(true);
@@ -254,43 +256,45 @@ const Home = ({
     checkUserLocation();
   }, []);
 
-  const [viewMode, setViewMode] = useState<'swipe' | 'list'>('list');
+  const [viewMode, setViewMode] = useState<"swipe" | "list">("list");
 
-  const [swipeDirection, setSwipeDirection] = useState<null | 'left' | 'right'>(null);
+  const [swipeDirection, setSwipeDirection] = useState<null | "left" | "right">(
+    null
+  );
   const [isDragging, setIsDragging] = useState(false);
   const [dragX, setDragX] = useState(0);
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (viewMode === 'swipe' && currentUsers.length > 0) {
-        if (e.key === 'ArrowLeft') {
+      if (viewMode === "swipe" && currentUsers.length > 0) {
+        if (e.key === "ArrowLeft") {
           handleDislike();
-        } else if (e.key === 'ArrowRight') {
+        } else if (e.key === "ArrowRight") {
           handleLike(currentUsers[currentIndex]._id);
         }
       }
     };
 
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
   }, [viewMode, currentIndex, currentUsers]);
 
   const handlers = useSwipeable({
     onSwiping: (e) => {
-      if (viewMode === 'swipe') {
+      if (viewMode === "swipe") {
         setIsDragging(true);
         setDragX(e.deltaX);
       }
     },
     onSwipedLeft: () => {
-      if (viewMode === 'swipe') {
-        setSwipeDirection('left');
+      if (viewMode === "swipe") {
+        setSwipeDirection("left");
         handleDislike();
       }
     },
     onSwipedRight: () => {
-      if (viewMode === 'swipe') {
-        setSwipeDirection('right');
+      if (viewMode === "swipe") {
+        setSwipeDirection("right");
         handleLike(currentUsers[currentIndex]._id);
       }
     },
@@ -306,17 +310,21 @@ const Home = ({
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
   // Thêm hàm xử lý chuyển ảnh
-  const handlePhotoNavigation = useCallback((direction: 'prev' | 'next', e: React.MouseEvent) => {
-    e.stopPropagation(); // Ngăn chặn sự kiện swipe
-    if (direction === 'prev') {
-      setCurrentPhotoIndex(prev => (prev > 0 ? prev - 1 : prev));
-    } else {
-      setCurrentPhotoIndex(prev => {
-        const maxIndex = currentUsers[currentIndex]?.profilePictures.length - 1;
-        return prev < maxIndex ? prev + 1 : prev;
-      });
-    }
-  }, [currentIndex, currentUsers]);
+  const handlePhotoNavigation = useCallback(
+    (direction: "prev" | "next", e: React.MouseEvent) => {
+      e.stopPropagation(); // Ngăn chặn sự kiện swipe
+      if (direction === "prev") {
+        setCurrentPhotoIndex((prev) => (prev > 0 ? prev - 1 : prev));
+      } else {
+        setCurrentPhotoIndex((prev) => {
+          const maxIndex =
+            currentUsers[currentIndex]?.profilePictures.length - 1;
+          return prev < maxIndex ? prev + 1 : prev;
+        });
+      }
+    },
+    [currentIndex, currentUsers]
+  );
 
   // Reset photo index khi chuyển user
   useEffect(() => {
@@ -329,20 +337,20 @@ const Home = ({
   // Hàm xử lý tự động chuyển ảnh sau 45s
   const startStoryTimer = useCallback(() => {
     if (storyTimer) clearTimeout(storyTimer);
-    
+
     const timer = setTimeout(() => {
       const user = currentUsers[currentIndex];
       if (user && currentPhotoIndex < user.profilePictures.length - 1) {
-        setCurrentPhotoIndex(prev => prev + 1);
+        setCurrentPhotoIndex((prev) => prev + 1);
       }
     }, 45000); // 45 seconds
-    
+
     setStoryTimer(timer);
   }, [currentIndex, currentPhotoIndex, currentUsers]);
 
   // Reset và start timer khi chuyển ảnh hoặc user
   useEffect(() => {
-    if (viewMode === 'swipe') {
+    if (viewMode === "swipe") {
       startStoryTimer();
     }
     return () => {
@@ -405,7 +413,11 @@ const Home = ({
 
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 sm:gap-3">
-                  <span className={`text-xs sm:text-sm ${viewMode === 'list' ? 'text-gray-800' : 'text-gray-400'}`}>
+                  <span
+                    className={`text-xs sm:text-sm ${
+                      viewMode === "list" ? "text-gray-800" : "text-gray-400"
+                    }`}
+                  >
                     <i className="fas fa-th-large mr-1 hidden sm:inline"></i>
                     <span className="sm:hidden">Danh sách</span>
                     <span className="hidden sm:inline">Danh sách</span>
@@ -414,12 +426,20 @@ const Home = ({
                     <input
                       type="checkbox"
                       className="sr-only peer"
-                      checked={viewMode === 'swipe'}
-                      onChange={() => setViewMode(prev => prev === 'list' ? 'swipe' : 'list')}
+                      checked={viewMode === "swipe"}
+                      onChange={() =>
+                        setViewMode((prev) =>
+                          prev === "list" ? "swipe" : "list"
+                        )
+                      }
                     />
                     <div className="w-12 sm:w-14 h-6 sm:h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-pink-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 sm:after:h-6 sm:after:w-6 after:transition-all peer-checked:bg-pink-500"></div>
                   </label>
-                  <span className={`text-xs sm:text-sm ${viewMode === 'swipe' ? 'text-gray-800' : 'text-gray-400'}`}>
+                  <span
+                    className={`text-xs sm:text-sm ${
+                      viewMode === "swipe" ? "text-gray-800" : "text-gray-400"
+                    }`}
+                  >
                     <i className="fas fa-hand-pointer mr-1 hidden sm:inline"></i>
                     <span className="sm:hidden">Quẹt</span>
                     <span className="hidden sm:inline">Quẹt</span>
@@ -456,7 +476,7 @@ const Home = ({
             </div>
           )}
 
-          {viewMode === 'list' ? (
+          {viewMode === "list" ? (
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 xl:gap-8">
               {currentUsers.map((user) => (
                 <div
@@ -526,14 +546,17 @@ const Home = ({
                     <div
                       key={user._id}
                       className={`absolute inset-0 transition-all duration-300 ${
-                        index === currentIndex ? 'z-10' : 'z-0'
+                        index === currentIndex ? "z-10" : "z-0"
                       }`}
                       style={{
-                        transform: index === currentIndex 
-                          ? `scale(1) translateX(${isDragging ? dragX : 0}px) rotate(${isDragging ? dragX * 0.1 : 0}deg)`
-                          : 'scale(0.95)',
+                        transform:
+                          index === currentIndex
+                            ? `scale(1) translateX(${
+                                isDragging ? dragX : 0
+                              }px) rotate(${isDragging ? dragX * 0.1 : 0}deg)`
+                            : "scale(0.95)",
                         opacity: index === currentIndex ? 1 : 0,
-                        transition: isDragging ? 'none' : 'all 0.3s ease-out',
+                        transition: isDragging ? "none" : "all 0.3s ease-out",
                       }}
                     >
                       <div className="relative bg-white rounded-2xl shadow-xl overflow-hidden">
@@ -547,7 +570,10 @@ const Home = ({
                               <div
                                 className="h-full bg-white transition-all duration-300"
                                 style={{
-                                  width: photoIndex <= currentPhotoIndex ? '100%' : '0%',
+                                  width:
+                                    photoIndex <= currentPhotoIndex
+                                      ? "100%"
+                                      : "0%",
                                 }}
                               />
                             </div>
@@ -562,28 +588,32 @@ const Home = ({
                               src={photo || "https://via.placeholder.com/150"}
                               alt={`${user.name} - ${photoIndex + 1}`}
                               className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
-                                photoIndex === currentPhotoIndex ? 'opacity-100' : 'opacity-0'
+                                photoIndex === currentPhotoIndex
+                                  ? "opacity-100"
+                                  : "opacity-0"
                               }`}
                             />
                           ))}
 
                           {/* Photo Navigation Tap Areas */}
                           <div className="absolute inset-0 flex">
-                            <div 
+                            <div
                               className="w-1/2 h-full"
                               onClick={() => {
                                 if (currentPhotoIndex > 0) {
-                                  setCurrentPhotoIndex(prev => prev - 1);
+                                  setCurrentPhotoIndex((prev) => prev - 1);
                                   startStoryTimer();
                                 }
                               }}
                             />
-                            <div 
+                            <div
                               className="w-1/2 h-full"
                               onClick={() => {
-                                const maxIndex = currentUsers[currentIndex]?.profilePictures.length - 1;
+                                const maxIndex =
+                                  currentUsers[currentIndex]?.profilePictures
+                                    .length - 1;
                                 if (currentPhotoIndex < maxIndex) {
-                                  setCurrentPhotoIndex(prev => prev + 1);
+                                  setCurrentPhotoIndex((prev) => prev + 1);
                                   startStoryTimer();
                                 }
                               }}
@@ -603,12 +633,15 @@ const Home = ({
                         <div className="p-4">
                           <div className="flex flex-wrap gap-2 mb-4">
                             {user.interests?.slice(0, 3).map((interest, i) => (
-                              <span key={i} className="bg-pink-100 text-pink-600 px-3 py-1 rounded-full text-sm">
+                              <span
+                                key={i}
+                                className="bg-pink-100 text-pink-600 px-3 py-1 rounded-full text-sm"
+                              >
                                 {interest}
                               </span>
                             ))}
                           </div>
-                          
+
                           <div className="flex justify-center gap-4">
                             <button
                               onClick={() => handleDislike()}
@@ -630,7 +663,9 @@ const Home = ({
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <p className="text-gray-500">Không còn người dùng nào trong khu vực của bạn</p>
+                  <p className="text-gray-500">
+                    Không còn người dùng nào trong khu vực của bạn
+                  </p>
                 </div>
               )}
             </div>
