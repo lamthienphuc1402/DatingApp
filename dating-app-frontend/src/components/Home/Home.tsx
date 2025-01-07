@@ -400,7 +400,7 @@ const Home = ({
         {/* Main content */}
         <div className="w-full md:w-2/3 p-4">
           {/* Header section with improved layout */}
-          <div className="bg-white rounded-xl shadow-lg mb-8">
+          <div className="bg-white rounded-xl shadow-lg mb-4">
             <div className="flex items-center justify-between p-6">
               <div className="flex-1">
                 <h1 className="text-2xl font-extrabold text-gray-800">
@@ -477,7 +477,7 @@ const Home = ({
           )}
 
           {viewMode === "list" ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 xl:gap-8">
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 2xl:gap-8">
               {currentUsers.map((user) => (
                 <div
                   key={user._id}
@@ -671,7 +671,7 @@ const Home = ({
             </div>
           )}
 
-          <div className="flex justify-center mt-6 gap-2">
+          <div className="flex justify-center mt-3 2xl:mt-6 gap-3">
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
               <button
                 key={page}

@@ -8,27 +8,40 @@ import {
 import { Server } from 'socket.io';
 import { ChatService } from './chat.service';
 import { SendMessageDto } from './dto/send-message.dto';
-import { UserService } from '../user/user.service'; // Nhập UserService
+import { UserService } from '../user/user.service';
+import { forwardRef, Inject } from '@nestjs/common';
 
 @WebSocketGateway({ cors: true })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
 
   constructor(
+    @Inject(forwardRef(() => UserService))
+    private readonly userService: UserService,
+    @Inject(forwardRef(() => ChatService))
     private readonly chatService: ChatService,
-    private readonly userService: UserService, // Thêm UserService vào constructor
   ) {}
 
   handleConnection(client: any) {
     const userId = this.getUserIdFromClient(client);
-    this.userService.setUserOnline(userId, true); // Cập nhật trạng thái online
-    this.server.emit('userStatus', { userId, status: 'online' }); // Thông báo cho tất cả client
+    this.userService.setUserOnline(userId, true);
+    this.server.emit('userStatus', { userId, status: 'online' });
   }
 
   handleDisconnect(client: any) {
     const userId = this.getUserIdFromClient(client);
-    this.userService.setUserOnline(userId, false); // Cập nhật trạng thái offline
-    this.server.emit('userStatus', { userId, status: 'offline' }); // Thông báo cho tất cả client
+    this.userService.setUserOnline(userId, false);
+    this.server.emit('userStatus', { userId, status: 'offline' });
+  }
+
+  async emitNewMessage(senderId: string, receiverId: string, message: any) {
+    this.server.to(receiverId).emit('newMessage', {
+      senderId,
+      message
+    });
+    
+    // Emit để cập nhật danh sách matched users
+    this.server.to(senderId).to(receiverId).emit('updateMatchedUsers');
   }
 
   @SubscribeMessage('sendMessage')
@@ -37,11 +50,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const message = await this.chatService.saveMessage(payload);
       this.server.to(payload.receiverId).emit('message', message);
     } catch (error) {
-      let message = 'Unknown error'; // Giá trị mặc định cho thông báo lỗi
+      let message = 'Unknown error';
       if (error instanceof Error) {
-        message = error.message; // Lấy thông báo lỗi nếu error là một instance của Error
+        message = error.message;
       }
-      client.emit('error', { message }); // Gửi thông báo lỗi cho client
+      client.emit('error', { message });
     }
   }
 
@@ -126,19 +139,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         payload.userId1,
         payload.userId2,
       );
-      client.emit('messages', messages); // Gửi lại danh sách tin nhắn cho client
+      client.emit('messages', messages);
     } catch (error) {
-      let message = 'Unknown error'; // Giá trị mặc định cho thông báo lỗi
+      let message = 'Unknown error';
       if (error instanceof Error) {
-        message = error.message; // Lấy thông báo lỗi nếu error là một instance của Error
+        message = error.message;
       }
-      client.emit('error', { message }); // Gửi thông báo lỗi cho client
+      client.emit('error', { message });
     }
   }
 
   private getUserIdFromClient(client: any): string {
-    // Giả sử bạn lưu userId trong client handshake hoặc token
-
-    return client.handshake.query.userId; // Lấy userId từ query params
+    return client.handshake.query.userId;
   }
 }

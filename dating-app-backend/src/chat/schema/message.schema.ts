@@ -14,8 +14,17 @@ export class Message {
     @Prop({ required: true })
     content: string;
 
-    @Prop({ type: Map, of: [String], default: {} })
-    reactions: Map<string, string[]>; // emoji: userId[]
+    @Prop({ default: false })
+    isRead: boolean;
+
+    @Prop({ type: Map, of: [String], default: new Map() })
+    reactions: Map<string, string[]>;
+
+    @Prop()
+    createdAt: Date;
+
+    @Prop()
+    updatedAt: Date;
 }
 
 export const MessageSchema = SchemaFactory.createForClass(Message);

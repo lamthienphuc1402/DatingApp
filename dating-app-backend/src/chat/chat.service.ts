@@ -1,30 +1,40 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Inject, Injectable, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { UserService } from '../user/user.service';
+import { Message } from './schema/message.schema';
 import { SendMessageDto } from './dto/send-message.dto';
-import { Message, MessageDocument } from './schema/message.schema'; // Nhập Message và MessageDocument
+import { UserService } from '../user/user.service';
+import { ChatGateway } from './chat.gateway';
 
 @Injectable()
 export class ChatService {
     constructor(
-        @InjectModel(Message.name) private messageModel: Model<MessageDocument>, // Inject model
+        @InjectModel(Message.name) private messageModel: Model<Message>,
+        @Inject(forwardRef(() => UserService))
         private readonly userService: UserService,
+        @Inject(forwardRef(() => ChatGateway))
+        private readonly chatGateway: ChatGateway,
     ) {}
 
     async saveMessage(payload: SendMessageDto): Promise<Message> {
-        // Kiểm tra xem hai người dùng đã match chưa
-        const isMatched = await this.checkIfMatched(payload.senderId, payload.receiverId);
-        if (!isMatched) {
-            throw new HttpException('Users have not matched yet', HttpStatus.FORBIDDEN);
-        }
-
         const message = new this.messageModel({
             senderId: payload.senderId,
             receiverId: payload.receiverId,
             content: payload.content,
+            isRead: false,
+            createdAt: new Date()
         });
-        return message.save(); // L��u tin nhắn vào cơ sở dữ liệu
+        
+        const savedMessage = await message.save();
+        
+        // Emit sự kiện qua WebSocket
+        await this.chatGateway.emitNewMessage(
+            payload.senderId,
+            payload.receiverId,
+            savedMessage
+        );
+        
+        return savedMessage;
     }
 
     async checkIfMatched(userId1: string, userId2: string): Promise<boolean> {
@@ -40,12 +50,33 @@ export class ChatService {
     }
 
     async getMessagesBetweenUsers(userId1: string, userId2: string): Promise<Message[]> {
-        return this.messageModel.find({
+        // Kiểm tra xem 2 user có match nhau không
+        const isMatched = await this.checkIfMatched(userId1, userId2);
+        if (!isMatched) {
+            throw new HttpException('Users are not matched', HttpStatus.FORBIDDEN);
+        }
+
+        const messages = await this.messageModel.find({
             $or: [
                 { senderId: userId1, receiverId: userId2 },
-                { senderId: userId2, receiverId: userId1 },
-            ],
-        }).exec(); // Lấy tin nhắn giữa hai người dùng
+                { senderId: userId2, receiverId: userId1 }
+            ]
+        })
+        .sort({ createdAt: -1 }) // Sắp xếp theo thời gian giảm dần
+        .limit(50) // Giới hạn số lượng tin nhắn
+        .exec();
+
+        // Đánh dấu tin nhắn là đã đọc khi mở chat
+        await this.messageModel.updateMany(
+            {
+                senderId: userId2,
+                receiverId: userId1,
+                isRead: false
+            },
+            { $set: { isRead: true } }
+        );
+
+        return messages.reverse(); // Đảo ngược lại để hiển thị đúng thứ tự
     }
 
     async addReaction(messageId: string, userId: string, emoji: string): Promise<Message> {
@@ -75,5 +106,43 @@ export class ChatService {
 
         message.reactions = reactions;
         return message.save();
+    }
+
+    async getLastMessageBetweenUsers(userId1: string, userId2: string): Promise<Message | null> {
+        const message = await this.messageModel.findOne({
+            $or: [
+                { senderId: userId1, receiverId: userId2 },
+                { senderId: userId2, receiverId: userId1 }
+            ]
+        })
+        .sort({ createdAt: -1 })
+        .select('content senderId receiverId createdAt isRead')
+        .exec();
+
+        if (message) {
+            // Cập nhật trạng thái đã đọc nếu người nhận xem tin nhắn
+            if (message.receiverId.toString() === userId1 && !message.isRead) {
+                await this.messageModel.findByIdAndUpdate(message._id, { isRead: false });
+                message.isRead = false;
+            }
+        }
+
+        return message;
+    }
+
+    async markMessagesAsRead(userId: string, targetUserId: string): Promise<void> {
+        console.log('Service marking messages as read:', { userId, targetUserId }); // Thêm log
+        
+        // Đánh dấu tin nhắn là đã đọc
+        const result = await this.messageModel.updateMany(
+            {
+                senderId: targetUserId,
+                receiverId: userId,
+                isRead: false
+            },
+            { $set: { isRead: true } }
+        );
+        
+        console.log('Update result:', result); // Thêm log để xem kết quả cập nhật
     }
 }

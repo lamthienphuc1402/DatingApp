@@ -20,6 +20,7 @@ import AdminManagement from "./components/Admin/AdminManagement";
 import AdminUsers from './components/Admin/AdminUsers';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import LandingPage from "./components/Landing/LandingPage";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -49,7 +50,7 @@ function App() {
             path="/"
             element={
               checkLogin ? (
-                <Login setIsLoggedIn={setIsLoggedIn} setUserId={setUserId} />
+                <LandingPage />
               ) : (
                 <Home
                   isLoggedIn={isLoggedIn}

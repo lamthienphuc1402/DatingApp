@@ -3,6 +3,8 @@ import {
   HttpException,
   HttpStatus,
   NotFoundException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -17,6 +19,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { UpdateLocationDto } from './dto/update-location.dto';
 import axios from 'axios';
+import { ChatService } from 'src/chat/chat.service';
 
 @Injectable()
 export class UserService {
@@ -25,6 +28,8 @@ export class UserService {
     private emailService: EmailService, // Thêm EmailService vào constructor
     private locationService: LocationService,
     private readonly cloudinaryService: CloudinaryService,
+    @Inject(forwardRef(() => ChatService))
+    private readonly chatService: ChatService,
   ) {}
 
   async create(
@@ -508,17 +513,43 @@ export class UserService {
     return await bcrypt.compare(plainPassword, hashedPassword);
   }
 
-  async getMatchedUsers(userId: string): Promise<UserDocument[]> {
+  async getMatchedUsers(userId: string): Promise<User[]> {
     const user = await this.userModel.findById(userId);
     if (!user) {
-      throw new HttpException(
-        'Không tìm thấy người dùng',
-        HttpStatus.NOT_FOUND,
-      );
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
 
-    // Lấy danh sách người dùng đã match với người dùng hiện tại
-    return this.userModel.find({ _id: { $in: user.matchedUsers } }).exec();
+    // Lấy thông tin của tất cả matched users với last message
+    const matchedUsersWithMessages = await Promise.all(
+      user.matchedUsers.map(async (matchedUserId) => {
+        const matchedUser = await this.userModel.findById(matchedUserId);
+        if (!matchedUser) return null;
+
+        const lastMessage = await this.chatService.getLastMessageBetweenUsers(
+          userId,
+          matchedUserId.toString()
+        );
+
+        return {
+          ...matchedUser.toObject(),
+          lastMessage: lastMessage ? {
+            content: lastMessage.content,
+            createdAt: lastMessage.createdAt,
+            isRead: lastMessage.isRead,
+            senderId: lastMessage.senderId
+          } : null
+        };
+      })
+    );
+
+    // Lọc bỏ null và sắp xếp theo thời gian tin nhắn mới nhất
+    return matchedUsersWithMessages
+      .filter(user => user !== null)
+      .sort((a, b) => {
+        const timeA = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : 0;
+        const timeB = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : 0;
+        return timeB - timeA; // Sắp xếp giảm dần (mới nhất lên đầu)
+      });
   }
 
   // Thêm phương thức tìm kiếm người dùng phù hợp theo giới tính

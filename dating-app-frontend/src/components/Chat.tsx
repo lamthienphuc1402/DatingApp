@@ -6,12 +6,13 @@ import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
 // Định nghĩa kiểu cho tin nhắn
 interface Message {
   _id: string;
-  id: number;
   senderId: string;
+  receiverId: string;
   content: string;
+  isRead: boolean;
   createdAt: string;
   reactions?: {
-    [key: string]: string[]; // emoji: userId[]
+    [key: string]: string[];
   };
 }
 

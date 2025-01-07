@@ -1,8 +1,9 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState, useCallback, useMemo } from "react";
 import axios from "axios";
 import { motion } from "framer-motion";
 import { SocketContext } from "../SocketContext";
 import Chat from "./Chat";
+import { debounce } from "lodash";
 
 interface MatchedUser {
   _id: string;
@@ -15,47 +16,69 @@ interface MatchedUser {
 const MatchedUsersList = () => {
   const [matchedUsers, setMatchedUsers] = useState<MatchedUser[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filteredUsers, setFilteredUsers] = useState(matchedUsers);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedUser, setSelectedUser] = useState<MatchedUser | null>(null);
   const usersPerPage = 5;
   const { socket }: any = useContext(SocketContext);
 
-  const fetchMatchedUsers = async () => {
-    try {
-      const userId = JSON.parse(localStorage.getItem("user") || "{}")._id;
-      const response = await axios.get(
-        `${import.meta.env.VITE_LOCAL_API_URL}/users/${userId}/matches`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-      setMatchedUsers(response.data);
-    } catch (error) {
-      console.error("Không thể lấy danh sách người dùng đã match:", error);
-      if (axios.isAxiosError(error) && error.response?.status === 404) {
-        console.log("Không có người dùng nào được match.");
-        setMatchedUsers([]);
+  const filteredUsers = useMemo(() => {
+    const uniqueUsers = matchedUsers.reduce((acc: MatchedUser[], current) => {
+      const exists = acc.find(user => user._id === current._id);
+      if (!exists) {
+        acc.push(current);
       }
-    }
-  };
+      return acc;
+    }, []);
+
+    return uniqueUsers.filter(user =>
+      user.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [matchedUsers, searchTerm]);
+
+  const debouncedFetch = useCallback(
+    debounce(async () => {
+      try {
+        const userId = JSON.parse(localStorage.getItem("user") || "{}")._id;
+        const response = await axios.get(
+          `${import.meta.env.VITE_LOCAL_API_URL}/users/${userId}/matches`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          }
+        );
+        
+        const newData = response.data;
+        const uniqueNewData = newData.filter((newUser: MatchedUser) => 
+          !matchedUsers.some(existingUser => 
+            existingUser._id === newUser._id && 
+            existingUser.isOnline === newUser.isOnline
+          )
+        );
+
+        if (uniqueNewData.length > 0) {
+          setMatchedUsers(prev => [...prev, ...uniqueNewData]);
+        }
+      } catch (error) {
+        console.error("Không thể lấy danh sách người dùng đã match:", error);
+      }
+    }, 500),
+    [matchedUsers]
+  );
+
+  useEffect(() => {
+    debouncedFetch();
+    return () => {
+      debouncedFetch.cancel();
+    };
+  }, [debouncedFetch]);
 
   //Handle user status
   useEffect(() => {
     socket.on("userStatus", (response: any) => {
-      fetchMatchedUsers();
+      debouncedFetch();
     });
   }, []);
-
-  useEffect(() => {
-    setFilteredUsers(
-      matchedUsers.filter((user) =>
-        user.name.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    );
-  }, [searchTerm, matchedUsers]);
 
   const indexOfLastUser = currentPage * usersPerPage;
   const indexOfFirstUser = indexOfLastUser - usersPerPage;

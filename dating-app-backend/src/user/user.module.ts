@@ -9,12 +9,14 @@ import { LocationServiceModule } from '../location-service/location-service.modu
 import { LocationService } from 'src/location-service/location-service.service';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { CloudinaryProvider } from 'src/cloudinary/cloudinary.provider';
+import { ChatModule } from 'src/chat/chat.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
     forwardRef(() => AuthModule), // Thêm AuthModule vào imports
     LocationServiceModule, // Đảm bảo rằng LocationServiceModule được import
+    forwardRef(() => ChatModule),
   ],
   controllers: [UserController],
   providers: [

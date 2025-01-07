@@ -1,9 +1,18 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useCallback } from "react";
 import axios from "axios";
 import { motion } from "framer-motion";
 import { SocketContext } from "../SocketContext";
 import Chat from "./Chat";
 import ApproveNotice from "./Home/ApproveNotice";
+import { format } from "date-fns";
+
+interface LastMessage {
+  content: string;
+  createdAt: string;
+  isRead: boolean;
+  senderId: string;
+  receiverId: string;
+}
 
 interface User {
   _id: string;
@@ -20,6 +29,7 @@ interface User {
   genderPreference: "male" | "female" | "both";
   isOnline: boolean;
   matchScore: number;
+  lastMessage?: LastMessage;
 }
 
 interface UserListsProps {
@@ -43,14 +53,8 @@ const InfoItem = ({
   </div>
 );
 
-const UserLists: React.FC<UserListsProps> = ({
-  refresh,
-  onSelectUser,
-  onClose,
-}) => {
-  const [activeTab, setActiveTab] = useState<"matches" | "liked" | "likedBy">(
-    "matches"
-  );
+const UserLists: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
+  const [activeTab, setActiveTab] = useState<"matches" | "liked" | "likedBy">("matches");
   const [likedUsers, setLikedUsers] = useState<User[]>([]);
   const [likedByUsers, setLikedByUsers] = useState<User[]>([]);
   const [matchedUsers, setMatchedUsers] = useState<User[]>([]);
@@ -65,7 +69,7 @@ const UserLists: React.FC<UserListsProps> = ({
   const [currentMatchId, setCurrentMatchId] = useState("");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  const fetchMatchedUsers = async () => {
+  const fetchMatchedUsers = useCallback(async () => {
     try {
       const userId = JSON.parse(localStorage.getItem("user") || "{}")._id;
       const response = await axios.get(
@@ -76,13 +80,26 @@ const UserLists: React.FC<UserListsProps> = ({
           },
         }
       );
-      setMatchedUsers(response.data);
+
+      // Sử dụng Map để loại bỏ trùng lặp
+      const uniqueUsers = new Map();
+      response.data.forEach((user: User) => {
+        const existingUser = uniqueUsers.get(user._id);
+        if (!existingUser || (existingUser.lastMessage?.createdAt ?? 0) < (user.lastMessage?.createdAt ?? 0)) {
+          uniqueUsers.set(user._id, user);
+        }
+      });
+
+      const newMatchedUsers = Array.from(uniqueUsers.values());
+      if (JSON.stringify(newMatchedUsers) !== JSON.stringify(matchedUsers)) {
+        setMatchedUsers(newMatchedUsers);
+      }
     } catch (error) {
       console.error("Không thể lấy danh sách người dùng đã match:", error);
     }
-  };
+  }, [matchedUsers]);
 
-  const fetchLikedUsers = async () => {
+  const fetchLikedUsers = useCallback(async () => {
     try {
       const userId = JSON.parse(localStorage.getItem("user") || "{}")._id;
       const response = await axios.get(
@@ -93,13 +110,14 @@ const UserLists: React.FC<UserListsProps> = ({
           },
         }
       );
-      setLikedUsers(response.data);
+      const uniqueUsers = [...new Map(response.data.map((user: User) => [user._id, user])).values()];
+      setLikedUsers(uniqueUsers as User[]);
     } catch (error) {
       console.error("Không thể lấy danh sách người dùng đã thích:", error);
     }
-  };
+  }, []);
 
-  const fetchLikedByUsers = async () => {
+  const fetchLikedByUsers = useCallback(async () => {
     try {
       const userId = JSON.parse(localStorage.getItem("user") || "{}")._id;
       const response = await axios.get(
@@ -110,31 +128,81 @@ const UserLists: React.FC<UserListsProps> = ({
           },
         }
       );
-      setLikedByUsers(response.data);
+      const uniqueUsers = [...new Map(response.data.map((user: User) => [user._id, user])).values()];
+      setLikedByUsers(uniqueUsers as User[]);
     } catch (error) {
       console.error("Không thể lấy danh sách người dùng đã thích mình:", error);
+    }
+  }, []);
+
+  const markMessagesAsRead = async (targetUserId: string) => {
+    try {
+      const userId = JSON.parse(localStorage.getItem("user") || "{}")._id;
+      console.log('Marking messages as read for:', targetUserId); // Thêm log
+      await axios.post(
+        `${import.meta.env.VITE_LOCAL_API_URL}/chat/mark-as-read`,
+        { userId, targetUserId },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+    } catch (error) {
+      console.error("Không thể đánh dấu tin nhắn là đã đọc:", error);
     }
   };
 
   useEffect(() => {
     if (activeTab === "matches") {
       fetchMatchedUsers();
+      
     } else if (activeTab === "liked") {
-      fetchLikedUsers();
+      fetchLikedUsers(); 
     } else if (activeTab === "likedBy") {
       fetchLikedByUsers();
     }
-  }, [activeTab]);
 
-  useEffect(() => {
-    socket?.on("userStatus", () => {
-      if (activeTab === "matches") {
-        fetchMatchedUsers();
+    let interval: NodeJS.Timeout;
+    if (activeTab === "matches") {
+      interval = setInterval(fetchMatchedUsers, 1000); // Tăng interval lên 5 giây để giảm số lần gọi API
+    }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
       }
-    });
-  }, [socket, activeTab]);
+    };
+  }, [activeTab, fetchMatchedUsers, fetchLikedUsers, fetchLikedByUsers]);
 
-  const getCurrentUsers = () => {
+  // Socket listeners
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewMessage = (message: LastMessage) => {
+      // Cập nhật danh sách người dùng đã match với tin nhắn mới
+      setMatchedUsers((prevUsers) => {
+        const updatedUsers = prevUsers.map((user) => {
+          if (user._id === message.senderId) {
+            return {
+              ...user,
+              lastMessage: message,
+            };
+          }
+          return user;
+        });
+        return updatedUsers;
+      });
+    };
+
+    socket.on("newMessage", handleNewMessage);
+
+    return () => {
+      socket.off("newMessage", handleNewMessage);
+    };
+  }, [socket]);
+
+  const getCurrentUsers = useCallback(() => {
     let users: User[] = [];
     switch (activeTab) {
       case "matches":
@@ -158,11 +226,14 @@ const UserLists: React.FC<UserListsProps> = ({
       users: filteredUsers.slice(indexOfFirstUser, indexOfLastUser),
       totalUsers: filteredUsers.length,
     };
-  };
+  }, [activeTab, matchedUsers, likedUsers, likedByUsers, searchTerm, currentPage]);
 
   const handleSelectUser = (user: User) => {
     if (activeTab === "matches") {
       setSelectedUser(user);
+      if (user.lastMessage && !user.lastMessage.isRead && user.lastMessage.senderId !== JSON.parse(localStorage.getItem("user") || "{}")._id) {
+        markMessagesAsRead(user._id);
+      }
     } else if (activeTab === "liked" || activeTab === "likedBy") {
       setSelectedProfile(user);
     }
@@ -209,6 +280,62 @@ const UserLists: React.FC<UserListsProps> = ({
     const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
     setSelectedProfile(null);
     fetchLikedByUsers();
+  };
+
+  const formatMessageTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    
+    // Nếu là hôm nay
+    if (diff < 24 * 60 * 60 * 1000) {
+      return format(date, 'HH:mm');
+    }
+    
+    // Nếu là tuần này
+    if (diff < 7 * 24 * 60 * 60 * 1000) {
+      return format(date, 'EEEE'); // Tên thứ
+    }
+    
+    // Các trường hợp khác
+    return format(date, 'dd/MM/yyyy');
+  };
+
+  // Thêm hàm helper để lấy tên ngắn gọn
+  const getShortName = (fullName: string) => {
+    const names = fullName.trim().split(' ');
+    return names[names.length - 1]; // Lấy tên cuối cùng
+  };
+
+  // Cập nhật phần hiển thị tin nhắn
+  const renderLastMessage = (user: User) => {
+    if (!user.lastMessage) {
+      return (
+        <p className="text-sm text-gray-500 truncate italic">
+          {user.bio || "Không có tiểu sử"}
+        </p>
+      );
+    }
+
+    const currentUserId = JSON.parse(localStorage.getItem("user") || "{}")._id;
+    const isSentByMe = user.lastMessage.senderId === currentUserId;
+    console.log(user.lastMessage.senderId);
+    console.log(user.lastMessage.receiverId);
+    console.log(currentUserId);
+    console.log(isSentByMe);
+    const messagePrefix = isSentByMe 
+      ? "Bạn: "
+      : `${getShortName(user.name)}: `;
+
+    return (
+      <p className={`text-sm ${
+        !isSentByMe && !user.lastMessage.isRead 
+          ? 'text-gray-900 font-semibold' 
+          : 'text-gray-500'
+      } truncate`}>
+        {messagePrefix}{user.lastMessage.content}
+      </p>
+    );
   };
 
   return (
@@ -318,11 +445,17 @@ const UserLists: React.FC<UserListsProps> = ({
                   <span className="font-semibold text-gray-800">
                     {user.name}
                   </span>
-                  <p className="text-sm text-gray-500 truncate">
-                    {user.bio || "Không có tiểu sử"}
-                  </p>
+                  <div className="flex flex-col">
+                    {renderLastMessage(user)}
+                  </div>
                 </div>
-                <span className="text-xs text-gray-400">14:30</span>
+                <div className="flex flex-col items-end">
+                  {user.lastMessage?.createdAt && (
+                    <span className="text-xs text-gray-400">
+                      {formatMessageTime(user.lastMessage.createdAt)}
+                    </span>
+                  )}
+                </div>
               </div>
             ))}
           </motion.div>

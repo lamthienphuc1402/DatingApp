@@ -35,4 +35,15 @@ export class ChatController {
   ) {
     return this.chatService.addReaction(messageId, body.userId, body.emoji);
   }
+
+  @Post('mark-as-read')
+  @ApiOperation({ summary: 'Đánh dấu tin nhắn là đã đọc' })
+  @ApiResponse({ status: 200, description: 'Tin nhắn đã được đánh dấu là đã đọc.' })
+  async markMessagesAsRead(
+    @Body('userId') userId: string,
+    @Body('targetUserId') targetUserId: string
+  ): Promise<void> {
+    console.log('Marking messages as read:', { userId, targetUserId });
+    return this.chatService.markMessagesAsRead(userId, targetUserId);
+  }
 }
