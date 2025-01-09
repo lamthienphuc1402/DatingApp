@@ -294,7 +294,17 @@ const UserLists: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     
     // Nếu là tuần này
     if (diff < 7 * 24 * 60 * 60 * 1000) {
-      return format(date, 'EEEE'); // Tên thứ
+      const dayName = format(date, 'EEEE');
+      const dayNameMap: { [key: string]: string } = {
+        'Monday': 'Thứ hai',
+        'Tuesday': 'Thứ ba', 
+        'Wednesday': 'Thứ tư',
+        'Thursday': 'Thứ năm',
+        'Friday': 'Thứ sáu',
+        'Saturday': 'Thứ bảy',
+        'Sunday': 'Chủ nhật'
+      };
+      return dayNameMap[dayName];
     }
     
     // Các trường hợp khác
