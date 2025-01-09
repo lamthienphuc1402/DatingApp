@@ -21,6 +21,8 @@ import AdminUsers from './components/Admin/AdminUsers';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import LandingPage from "./components/Landing/LandingPage";
+import FeedbackButton from "./components/FeedbackButton";
+import FeedbackManagement from "./components/Admin/FeedbackManagement";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -92,6 +94,7 @@ function App() {
             <Route index element={<AdminDashboard />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="management" element={<AdminManagement />} />
+            <Route path="feedback" element={<FeedbackManagement />} />
           </Route>
         </Routes>
         <ToastContainer
@@ -106,6 +109,7 @@ function App() {
           pauseOnHover
           theme="colored"
         />
+        {isLoggedIn && !isAdminRoute && <FeedbackButton />}
       </main>
     </Router>
   );

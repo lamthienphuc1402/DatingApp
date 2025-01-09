@@ -32,7 +32,7 @@ const AdminLayout = () => {
       {/* Sidebar */}
       <div className={`${isSidebarOpen ? 'w-64' : 'w-0 -ml-64'} md:w-64 md:ml-0 bg-white shadow-lg transition-all duration-300 fixed md:relative h-full z-30`}>
         <div className="p-6">
-          <h1 className="text-2xl font-bold text-purple-600">Datting App</h1>
+          <h1 className="text-2xl font-bold text-purple-600">Dating App</h1>
         </div>
         <nav className="mt-6">
           <Link
@@ -55,6 +55,13 @@ const AdminLayout = () => {
           >
             <i className="fas fa-user-shield mr-3"></i>
             Quản lý QTV
+          </Link>
+          <Link
+            to="/admin/feedback"
+            className="flex items-center px-6 py-3 text-gray-600 hover:bg-purple-50 hover:text-purple-600"
+          >
+            <i className="fas fa-comment-dots mr-3"></i>
+            Quản lý phản hồi
           </Link>
         </nav>
       </div>

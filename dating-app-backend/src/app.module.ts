@@ -8,6 +8,7 @@ import { LocationService } from './location-service/location-service.service';
 import { ChatModule } from './chat/chat.module';
 import { ConfigModule } from '@nestjs/config';
 import { AdminModule } from './admin/admin.module';
+import { FeedbackModule } from './feedback/feedback.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { AdminModule } from './admin/admin.module';
     AuthModule,
     ChatModule,
     AdminModule,
+    FeedbackModule,
   ],
   controllers: [AppController],
   providers: [AppService, LocationService],
