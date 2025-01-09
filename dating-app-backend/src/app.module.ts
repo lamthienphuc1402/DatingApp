@@ -18,7 +18,7 @@ import { FeedbackModule } from './feedback/feedback.module';
       cache: true,
     }),
     MongooseModule.forRoot(
-      'mongodb+srv://phuc:Tphuc1402@cluster0.xecpv7v.mongodb.net/',
+      'mongodb+srv://phuc:Tphuc1402@cluster0.xecpv7v.mongodb.net/dating-app',
     ),
     UserModule,
     AuthModule,
