@@ -8,9 +8,10 @@ interface LocationUpdateModalProps {
         city?: string;
         district?: string;
     };
+    onLocationUpdated: () => void;
 }
 
-const LocationUpdateModal: React.FC<LocationUpdateModalProps> = ({ isOpen, onClose, userData }) => {
+const LocationUpdateModal: React.FC<LocationUpdateModalProps> = ({ isOpen, onClose, userData, onLocationUpdated }) => {
     if (!isOpen) return null;
 
     return (
@@ -30,7 +31,7 @@ const LocationUpdateModal: React.FC<LocationUpdateModalProps> = ({ isOpen, onClo
                 <LocationSelector 
                     onLocationUpdate={() => {
                         onClose();
-                        window.location.reload();
+                        onLocationUpdated();
                     }}
                     initialCity={userData?.city}
                     initialDistrict={userData?.district}

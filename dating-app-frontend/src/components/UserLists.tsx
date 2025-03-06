@@ -53,7 +53,7 @@ const InfoItem = ({
   </div>
 );
 
-const UserLists: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
+const UserLists: React.FC<UserListsProps> = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState<"matches" | "liked" | "likedBy">("matches");
   const [likedUsers, setLikedUsers] = useState<User[]>([]);
   const [likedByUsers, setLikedByUsers] = useState<User[]>([]);
@@ -329,10 +329,6 @@ const UserLists: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 
     const currentUserId = JSON.parse(localStorage.getItem("user") || "{}")._id;
     const isSentByMe = user.lastMessage.senderId === currentUserId;
-    console.log(user.lastMessage.senderId);
-    console.log(user.lastMessage.receiverId);
-    console.log(currentUserId);
-    console.log(isSentByMe);
     const messagePrefix = isSentByMe 
       ? "Bạn: "
       : `${getShortName(user.name)}: `;

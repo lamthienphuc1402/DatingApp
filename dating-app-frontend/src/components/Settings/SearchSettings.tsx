@@ -251,22 +251,7 @@ const SearchSettings = ({ onClose, onSettingsChanged }: SearchSettingsProps) => 
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t md:hidden">
-        <button
-          onClick={handleSave}
-          disabled={!isDirty || isSaving}
-          className={`w-full px-6 py-3 rounded-xl font-medium transition-all
-            ${
-              isDirty
-                ? "bg-pink-500 text-white hover:bg-pink-600 active:bg-pink-700"
-                : "bg-gray-100 text-gray-400 cursor-not-allowed"
-            }
-            ${isSaving ? "opacity-75 cursor-wait" : ""}
-          `}
-        >
-          {isSaving ? "Đang lưu..." : "Lưu thay đổi"}
-        </button>
-      </div>
+      
     </div>
   );
 };

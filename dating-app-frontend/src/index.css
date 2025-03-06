@@ -132,3 +132,49 @@ input:-webkit-autofill:focus {
   align-items: center;
   gap: 2px;
 }
+
+.distance-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #666;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.distance-info i {
+  color: #e74c3c;
+}
+
+.match-score {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #666;
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+}
+
+.match-score i {
+  color: #3498db;
+}
+
+.distance-badge {
+  @apply absolute bottom-20 left-4 z-20 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg;
+  animation: slideUp 0.3s ease-out;
+}
+
+.distance-badge i {
+  @apply text-purple-500;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

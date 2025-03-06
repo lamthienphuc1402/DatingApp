@@ -137,44 +137,40 @@ export class UserService {
     // Xây dựng query điều kiện giới tính
     const genderQuery = this.buildGenderPreferenceQuery(user);
 
-    // Tìm users gần đó với điều kiện giới tính
-    const baseQuery: any = {
-      $and: [
-        { _id: { $ne: userId } },
-        { _id: { $nin: user.likedUsers } },
-        {
-          location: {
-            $near: {
-              $geometry: {
-                type: 'Point',
-                coordinates: user.location.coordinates,
-              },
-              $maxDistance: maxDistance * 1000,
-            },
+    // Sử dụng $geoNear để lấy khoảng cách
+    const nearbyUsers = await this.userModel.aggregate([
+      {
+        $geoNear: {
+          near: {
+            type: 'Point',
+            coordinates: [user.location.coordinates[0], user.location.coordinates[1]],
           },
+          distanceField: 'distance',
+          maxDistance: maxDistance * 1000,
+          spherical: true,
+          distanceMultiplier: 0.001,
         },
-        // Thêm điều kiện giới tính vào query
-        ...(genderQuery ? [genderQuery] : []),
-      ],
-    };
+      },
+      {
+        $match: {
+          _id: { 
+            $ne: user._id,
+            $nin: user.likedUsers 
+          },
+          ...(genderQuery ? genderQuery : {}),
+        },
+      },
+    ]).exec();
 
-    const users = await this.userModel.find(baseQuery).lean().exec();
-
-    // Tính điểm dựa trên preferences
-    const scoredUsers = users.map((matchUser) => {
+    // Tính điểm và thêm thông tin khoảng cách
+    const scoredUsers = nearbyUsers.map((matchUser) => {
       let totalScore = 0;
       let maxPossibleScore = 0;
 
       // Điểm khoảng cách (luôn tính)
-      if (matchUser.location?.coordinates && user.location?.coordinates) {
-        const distance = this.calculateDistance(
-          user.location.coordinates,
-          matchUser.location.coordinates,
-        );
-        const distanceScore = Math.max(0, 30 - (distance / maxDistance) * 30);
-        totalScore += distanceScore;
-        maxPossibleScore += 30;
-      }
+      const distanceScore = Math.max(0, 30 - (matchUser.distance / maxDistance) * 30);
+      totalScore += distanceScore;
+      maxPossibleScore += 30;
 
       // Chỉ tính điểm sở thích nếu được ưu tiên
       if (
@@ -244,6 +240,7 @@ export class UserService {
       return {
         ...matchUser,
         matchScore,
+        distance: Math.round(matchUser.distance * 10) / 10, // Làm tròn đến 1 chữ số thập phân
       };
     });
 
