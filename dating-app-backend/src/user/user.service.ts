@@ -20,6 +20,7 @@ import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { UpdateLocationDto } from './dto/update-location.dto';
 import axios from 'axios';
 import { ChatService } from 'src/chat/chat.service';
+import { AIService } from 'src/ai/ai.service';
 
 @Injectable()
 export class UserService {
@@ -30,6 +31,7 @@ export class UserService {
     private readonly cloudinaryService: CloudinaryService,
     @Inject(forwardRef(() => ChatService))
     private readonly chatService: ChatService,
+    private readonly aiService: AIService,
   ) {}
 
   async create(
@@ -162,90 +164,84 @@ export class UserService {
       },
     ]).exec();
 
-    // Tính điểm và thêm thông tin khoảng cách
-    const scoredUsers = nearbyUsers.map((matchUser) => {
-      let totalScore = 0;
-      let maxPossibleScore = 0;
+    // Tính điểm AI cho mỗi người dùng
+    const usersWithScores = await Promise.all(
+      nearbyUsers.map(async (matchUser) => {
+        // Tính điểm theo cách cũ
+        let totalScore = 0;
+        let maxPossibleScore = 0;
 
-      // Điểm khoảng cách (luôn tính)
-      const distanceScore = Math.max(0, 30 - (matchUser.distance / maxDistance) * 30);
-      totalScore += distanceScore;
-      maxPossibleScore += 30;
+        const distanceScore = Math.max(0, 30 - (matchUser.distance / maxDistance) * 30);
+        totalScore += distanceScore;
+        maxPossibleScore += 30;
 
-      // Chỉ tính điểm sở thích nếu được ưu tiên
-      if (
-        preferences.prioritizeInterests &&
-        user.interests?.length &&
-        matchUser.interests?.length
-      ) {
-        const commonInterests = user.interests.filter((interest) =>
-          matchUser.interests.includes(interest),
-        );
-        const maxInterests = Math.min(user.interests.length, 5);
-        const interestScore = (commonInterests.length / maxInterests) * 40;
-        totalScore += interestScore;
-        maxPossibleScore += 40;
-      }
+        if (preferences.prioritizeInterests && user.interests?.length && matchUser.interests?.length) {
+          const commonInterests = user.interests.filter((interest) =>
+            matchUser.interests.includes(interest),
+          );
+          const maxInterests = Math.min(user.interests.length, 5);
+          const interestScore = (commonInterests.length / maxInterests) * 40;
+          totalScore += interestScore;
+          maxPossibleScore += 40;
+        }
 
-      // Chỉ tính điểm tuổi nếu được ưu tiên
-      if (preferences.prioritizeAge && user.age && matchUser.age) {
-        const ageDiff = Math.abs(user.age - matchUser.age);
-        let ageScore = 0;
-        if (ageDiff <= 3) ageScore = 25;
-        else if (ageDiff <= 5) ageScore = 20;
-        else if (ageDiff <= 8) ageScore = 15;
-        else if (ageDiff <= 10) ageScore = 10;
-        else if (ageDiff <= 15) ageScore = 5;
-        totalScore += ageScore;
-        maxPossibleScore += 25;
-      }
+        if (preferences.prioritizeAge && user.age && matchUser.age) {
+          const ageDiff = Math.abs(user.age - matchUser.age);
+          let ageScore = 0;
+          if (ageDiff <= 3) ageScore = 25;
+          else if (ageDiff <= 5) ageScore = 20;
+          else if (ageDiff <= 8) ageScore = 15;
+          else if (ageDiff <= 10) ageScore = 10;
+          else if (ageDiff <= 15) ageScore = 5;
+          totalScore += ageScore;
+          maxPossibleScore += 25;
+        }
 
-      // Chỉ tính điểm học vấn nếu được ưu tiên
-      if (
-        preferences.prioritizeEducation &&
-        user.education &&
-        matchUser.education
-      ) {
-        const educationScore = user.education === matchUser.education ? 15 : 0;
-        totalScore += educationScore;
-        maxPossibleScore += 15;
-      }
+        if (preferences.prioritizeEducation && user.education && matchUser.education) {
+          const educationScore = user.education === matchUser.education ? 15 : 0;
+          totalScore += educationScore;
+          maxPossibleScore += 15;
+        }
 
-      // Chỉ tính điểm cung hoàng đạo nếu được ưu tiên
-      if (
-        preferences.prioritizeZodiac &&
-        user.zodiacSign &&
-        matchUser.zodiacSign
-      ) {
-        const zodiacCompatibility = this.checkZodiacCompatibility(
-          user.zodiacSign,
-          matchUser.zodiacSign,
-        );
-        const zodiacScore = (zodiacCompatibility / 3) * 15;
-        totalScore += zodiacScore;
-        maxPossibleScore += 15;
-      }
+        if (preferences.prioritizeZodiac && user.zodiacSign && matchUser.zodiacSign) {
+          const zodiacCompatibility = this.checkZodiacCompatibility(
+            user.zodiacSign,
+            matchUser.zodiacSign,
+          );
+          const zodiacScore = (zodiacCompatibility / 3) * 15;
+          totalScore += zodiacScore;
+          maxPossibleScore += 15;
+        }
 
-      // Chỉ tính điểm online nếu được ưu tiên
-      if (preferences.prioritizeOnline && matchUser.isOnline) {
-        totalScore += 5;
-        maxPossibleScore += 5;
-      }
+        if (preferences.prioritizeOnline && matchUser.isOnline) {
+          totalScore += 5;
+          maxPossibleScore += 5;
+        }
 
-      const matchScore =
-        maxPossibleScore > 0
+        const traditionalMatchScore = maxPossibleScore > 0
           ? Math.round((totalScore / maxPossibleScore) * 100)
           : 0;
 
-      return {
-        ...matchUser,
-        matchScore,
-        distance: Math.round(matchUser.distance * 10) / 10, // Làm tròn đến 1 chữ số thập phân
-      };
-    });
+        // Tính điểm AI
+        const aiScore = await this.aiService.calculateUserCompatibility(
+          user._id.toString(),
+          matchUser._id.toString()
+        );
+
+        // Kết hợp điểm truyền thống và điểm AI
+        const finalScore = (traditionalMatchScore * 0.6 + aiScore * 100 * 0.4);
+
+        return {
+          ...matchUser,
+          matchScore: Math.round(finalScore),
+          distance: Math.round(matchUser.distance * 10) / 10,
+          aiScore: Math.round(aiScore * 100),
+        };
+      })
+    );
 
     // Sắp xếp theo điểm phù hợp từ cao xuống thấp
-    return scoredUsers.sort((a, b) => b.matchScore - a.matchScore);
+    return usersWithScores.sort((a, b) => b.matchScore - a.matchScore);
   }
 
   private buildGenderPreferenceQuery(user: User): any {

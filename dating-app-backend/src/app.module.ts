@@ -9,6 +9,7 @@ import { ChatModule } from './chat/chat.module';
 import { ConfigModule } from '@nestjs/config';
 import { AdminModule } from './admin/admin.module';
 import { FeedbackModule } from './feedback/feedback.module';
+import { AIModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { FeedbackModule } from './feedback/feedback.module';
     ChatModule,
     AdminModule,
     FeedbackModule,
+    AIModule,
   ],
   controllers: [AppController],
   providers: [AppService, LocationService],

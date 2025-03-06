@@ -10,6 +10,7 @@ import { LocationService } from 'src/location-service/location-service.service';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { CloudinaryProvider } from 'src/cloudinary/cloudinary.provider';
 import { ChatModule } from 'src/chat/chat.module';
+import { AIModule } from 'src/ai/ai.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { ChatModule } from 'src/chat/chat.module';
     forwardRef(() => AuthModule), // Thêm AuthModule vào imports
     LocationServiceModule, // Đảm bảo rằng LocationServiceModule được import
     forwardRef(() => ChatModule),
+    forwardRef(() => AIModule),
   ],
   controllers: [UserController],
   providers: [

@@ -10,6 +10,7 @@ import axios from "axios";
 import SearchSettings from "../Settings/SearchSettings.tsx";
 import ListView from "./ListView";
 import SwipeView from "./SwipeView";
+import AIRecommendations from "../AI/AIRecommendations";
 
 interface User {
   _id: string;
@@ -80,7 +81,7 @@ const Home = ({
   const indexOfFirstUser = indexOfLastUser - usersPerPage;
   const currentUsers = users.slice(indexOfFirstUser, indexOfLastUser);
   const totalPages = Math.ceil(users.length / usersPerPage);
-  const [viewMode, setViewMode] = useState<"swipe" | "list">("list");
+  const [viewMode, setViewMode] = useState<"swipe" | "list" | "ai">("list");
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -353,37 +354,39 @@ const Home = ({
 
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 sm:gap-3">
-                  <span
-                    className={`text-xs sm:text-sm ${
-                      viewMode === "list" ? "text-gray-800" : "text-gray-400"
+                  <button
+                    onClick={() => setViewMode("list")}
+                    className={`px-4 py-2 rounded-lg transition-colors ${
+                      viewMode === "list"
+                        ? "bg-gray-800 text-white"
+                        : "bg-white text-gray-800 hover:bg-gray-100"
                     }`}
                   >
-                    <i className="fas fa-th-large mr-1 hidden sm:inline"></i>
-                    <span className="sm:hidden">Danh sách</span>
-                    <span className="hidden sm:inline">Danh sách</span>
-                  </span>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="sr-only peer"
-                      checked={viewMode === "swipe"}
-                      onChange={() =>
-                        setViewMode((prev) =>
-                          prev === "list" ? "swipe" : "list"
-                        )
-                      }
-                    />
-                    <div className="w-12 sm:w-14 h-6 sm:h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-pink-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 sm:after:h-6 sm:after:w-6 after:transition-all peer-checked:bg-pink-500"></div>
-                  </label>
-                  <span
-                    className={`text-xs sm:text-sm ${
-                      viewMode === "swipe" ? "text-gray-800" : "text-gray-400"
+                    <i className="fas fa-th-large mr-2"></i>
+                    Danh sách
+                  </button>
+                  <button
+                    onClick={() => setViewMode("swipe")}
+                    className={`px-4 py-2 rounded-lg transition-colors ${
+                      viewMode === "swipe"
+                        ? "bg-gray-800 text-white"
+                        : "bg-white text-gray-800 hover:bg-gray-100"
                     }`}
                   >
-                    <i className="fas fa-hand-pointer mr-1 hidden sm:inline"></i>
-                    <span className="sm:hidden">Quẹt</span>
-                    <span className="hidden sm:inline">Quẹt</span>
-                  </span>
+                    <i className="fas fa-exchange-alt mr-2"></i>
+                    Quẹt
+                  </button>
+                  <button
+                    onClick={() => setViewMode("ai")}
+                    className={`px-4 py-2 rounded-lg transition-colors ${
+                      viewMode === "ai"
+                        ? "bg-gray-800 text-white"
+                        : "bg-white text-gray-800 hover:bg-gray-100"
+                    }`}
+                  >
+                    <i className="fas fa-brain mr-2"></i>
+                    AI
+                  </button>
                 </div>
 
                 {/* Settings button */}
@@ -418,12 +421,14 @@ const Home = ({
           )}
 
           {/* Sử dụng các component mới */}
-          {viewMode === "list" ? (
+          {viewMode === "list" && (
             <ListView 
               currentUsers={currentUsers} 
               onSelectProfile={setSelectedProfile} 
             />
-          ) : (
+          )}
+
+          {viewMode === "swipe" && (
             <SwipeView
               users={users}
               currentIndex={currentIndex}
@@ -432,6 +437,14 @@ const Home = ({
               onDislike={handleDislike}
               onResetSwipe={handleResetSwipe}
               onSearchFarther={handleSearchFarther}
+            />
+          )}
+
+          {viewMode === "ai" && (
+            <AIRecommendations
+              users={users}
+              onSelectProfile={setSelectedProfile}
+              onLike={handleLike}
             />
           )}
 
