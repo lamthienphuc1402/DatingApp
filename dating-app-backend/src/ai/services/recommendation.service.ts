@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { Recommendation } from '../models/recommendation.model';
 import { UserMatchingService } from './user-matching.service';
 import { TextAnalysisService } from './text-analysis.service';
+import { User } from '../../user/schema/user.schema';
 
 @Injectable()
 export class RecommendationService {
@@ -12,6 +13,7 @@ export class RecommendationService {
     private recommendationModel: Model<Recommendation>,
     private userMatchingService: UserMatchingService,
     private textAnalysisService: TextAnalysisService,
+    @InjectModel(User.name) private userModel: Model<User>,
   ) {}
 
   async generateRecommendations(userId: string, userPreferences: any): Promise<Recommendation> {
@@ -33,6 +35,12 @@ export class RecommendationService {
   }
 
   private async calculateRecommendations(userId: string, preferences: any) {
+    // Lấy user hiện tại
+    const currentUser = await this.userModel.findById(userId);
+    if (!currentUser || !currentUser.location?.coordinates) {
+      throw new Error('Không tìm thấy thông tin vị trí người dùng');
+    }
+
     // Lấy embedding của user hiện tại
     const userEmbedding = await this.userMatchingService.generateUserEmbedding(userId, preferences);
 
@@ -52,11 +60,18 @@ export class RecommendationService {
           matchEmbedding.embedding
         );
 
+        // Tính khoảng cách
+        const distance = this.calculateDistance(
+          currentUser.location.coordinates,
+          match.location?.coordinates
+        );
+
         const reasons = this.generateMatchReasons(preferences, match, score);
 
         return {
           userId: match._id,
           score,
+          distance: distance ? Math.round(distance * 10) / 10 : null, // Làm tròn đến 1 chữ số thập phân
           reasons,
           lastUpdated: new Date()
         };
@@ -67,6 +82,20 @@ export class RecommendationService {
     return recommendations
       .sort((a, b) => b.score - a.score)
       .slice(0, 10);
+  }
+
+  private calculateDistance(coords1: number[], coords2?: number[]): number | null {
+    if (!coords1 || !coords2) return null;
+
+    const R = 6371; // Bán kính Trái Đất (km)
+    const dLat = (coords2[0] - coords1[0]) * Math.PI / 180;
+    const dLon = (coords2[1] - coords1[1]) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(coords1[0] * Math.PI / 180) * Math.cos(coords2[0] * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
   }
 
   private async findPotentialMatches(userId: string, preferences: any) {

@@ -8,6 +8,7 @@ const submitEditProfile = async (data: any, userId: string) => {
     {
       headers: {
         "Content-Type": "multipart/form-data",
+        "Authorization": `Bearer ${localStorage.getItem("token")}`,
       },
     }
   );
@@ -18,6 +19,11 @@ export const deleteCloudinaryImg = async (userId: string, url: string) => {
     `${import.meta.env.VITE_LOCAL_API_URL}/users/${userId}/delete-image`,
     {
       url,
+    },
+    {
+      headers: {
+        "Authorization": `Bearer ${localStorage.getItem("token")}`,
+      },
     }
   );
   console.log(result.data);
@@ -28,21 +34,7 @@ export const deleteCloudinaryImg = async (userId: string, url: string) => {
 };
 
 export const useEditProfile = (userId: string) => {
-  const { mutateAsync, data, error, isLoading, isSuccess } = useMutation({
-    mutationKey: ["submitEditProfile"],
-    mutationFn: async (data: any) => {
-      console.log("called");
-      const result = await submitEditProfile(data, userId);
-      return result.data;
-    },
-    onSuccess(data) {
-      console.log(data);
-      alert("Chỉnh sửa thannh công");
-      window.location.reload();
-    },
-    onError(error: any) {
-      console.error(error);
-    },
+  return useMutation({
+    mutationFn: (data: any) => submitEditProfile(data, userId),
   });
-  return { mutateAsync, data, error, isLoading, isSuccess };
 };

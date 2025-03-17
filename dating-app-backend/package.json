@@ -31,6 +31,7 @@
     "@nestjs/swagger": "^7.4.2",
     "@nestjs/websockets": "^10.4.4",
     "@tensorflow/tfjs": "^4.10.0",
+    "@tensorflow/tfjs-node": "^4.22.0",
     "@types/natural": "^5.1.5",
     "axios": "^1.7.7",
     "bcrypt": "^5.1.1",

@@ -10,30 +10,11 @@ import axios from "axios";
 import SearchSettings from "../Settings/SearchSettings.tsx";
 import ListView from "./ListView";
 import SwipeView from "./SwipeView";
-import AIRecommendations from "../AI/AIRecommendations";
+import MatchRecommendation from "../AI/MatchRecommendation";
+import { toast } from "react-toastify";
+import { User } from '../../types/user';
+import Navigation from '../Navigation/Navigation';
 
-interface User {
-  _id: string;
-  name: string;
-  email: string;
-  bio: string;
-  interests: string[];
-  profilePictures: string[];
-  age: number;
-  zodiacSign: string;
-  education: string;
-  hobbies: string;
-  gender: "male" | "female" | "other";
-  genderPreference: "male" | "female" | "both";
-  city?: string;
-  district?: string;
-  location?: {
-    type: string;
-    coordinates: number[];
-  };
-  matchScore?: number;
-  distance?: number;
-}
 const InfoItem = ({
   label,
   value,
@@ -75,13 +56,19 @@ const Home = ({
   const [showSettings, setShowSettings] = useState(false);
   const [hasSwipedAllUsers, setHasSwipedAllUsers] = useState(false);
   const [resetSwipe, setResetSwipe] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [showNotice, setShowNotice] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
-  const usersPerPage = window.innerWidth > 1280 ? 8 : 6;
-  const indexOfLastUser = currentPage * usersPerPage;
-  const indexOfFirstUser = indexOfLastUser - usersPerPage;
-  const currentUsers = users.slice(indexOfFirstUser, indexOfLastUser);
-  const totalPages = Math.ceil(users.length / usersPerPage);
-  const [viewMode, setViewMode] = useState<"swipe" | "list" | "ai">("list");
+  const [totalPages, setTotalPages] = useState(1);
+  const [pageSize, setPageSize] = useState(4);
+  const [viewMode, setViewMode] = useState<"swipe" | "list" | "ai">("swipe");
+
+  // Tách riêng state cho swipe và list view
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [listUsers, setListUsers] = useState<User[]>([]);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -90,7 +77,7 @@ const Home = ({
       setIsLoggedIn(true);
       try {
         const user = JSON.parse(userString);
-        fetchUserIdAndNearbyUsers(token, user._id);
+        fetchNearbyUsers(user._id);
       } catch (error) {
         console.error("Lỗi khi parse thông tin người dùng:", error);
         // Xử lý lỗi, ví dụ: đăng xuất người dùng
@@ -160,39 +147,110 @@ const Home = ({
     };
   }, [socket]);
 
-  //Swipe user
-  const fetchUserIdAndNearbyUsers = async (_token: string, userId: string) => {
-    try {
-      fetchNearbyUsers(userId);
-    } catch (err) {
-      setError("Không thể lấy thông tin người dùng.");
-    }
-  };
+  const fetchNearbyUsers = async (userId: string, page = 1) => {
+    setError("");
+    setLoading(true);
 
-  //Chat
-  const fetchNearbyUsers = async (userId: string) => {
+    // Kiểm tra userId
+    if (!userId) {
+      setError("ID người dùng không hợp lệ");
+      setLoading(false);
+      return;
+    }
+
     try {
-      const savedPrefs = localStorage.getItem("searchPreferences");
-      const preferences = savedPrefs
-        ? JSON.parse(savedPrefs)
+      // Lấy thông tin tìm kiếm từ localStorage
+      const savedPreferences = localStorage.getItem("searchPreferences");
+      const preferences = savedPreferences
+        ? JSON.parse(savedPreferences)
         : { searchDistance: 1000 };
 
+      console.log('Fetching nearby users with preferences:', preferences);
+
+      // Gọi API với tham số phân trang - sử dụng endpoint đúng
       const response = await fetch(
-        `${
-          import.meta.env.VITE_LOCAL_API_URL
-        }/users/nearby/${userId}?maxDistance=${preferences.searchDistance}`,
+        `${import.meta.env.VITE_LOCAL_API_URL}/users/nearby/${userId}?maxDistance=${
+          preferences.searchDistance || 1000
+        }`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         }
       );
+
+      if (!response.ok) {
+        throw new Error(`Lỗi HTTP: ${response.status}`);
+      }
+
       const data = await response.json();
-      setUsers(data);
-    } catch (err) {
-      setError("Không thể lấy danh sách người dùng gần.");
+      console.log("API Response:", data);
+
+      // Kiểm tra dữ liệu trả về
+      if (!data) {
+        throw new Error("Dữ liệu không hợp lệ");
+      }
+
+      // Xử lý dữ liệu nhận được
+      let fetchedUsers: User[] = [];
+      
+      if (Array.isArray(data)) {
+        fetchedUsers = data;
+      } else if (data.users && Array.isArray(data.users)) {
+        fetchedUsers = data.users;
+      } else {
+        fetchedUsers = [data]; // Trường hợp trả về một user
+      }
+      
+      console.log('Processed users:', {
+        total: fetchedUsers.length,
+        userIds: fetchedUsers.map(u => u._id)
+      });
+      
+      // Lưu trữ tất cả người dùng
+      setAllUsers(fetchedUsers);
+      
+      // Cập nhật users cho swipe view
+      setUsers(fetchedUsers);
+      
+      // Cập nhật users cho list view với phân trang
+      const startIndex = (page - 1) * pageSize;
+      const endIndex = Math.min(startIndex + pageSize, fetchedUsers.length);
+      setListUsers(fetchedUsers.slice(startIndex, endIndex));
+      
+      // Tính toán tổng số trang
+      const calculatedTotalPages = Math.ceil(fetchedUsers.length / pageSize) || 1;
+      setTotalPages(calculatedTotalPages);
+      
+      // Cập nhật trạng thái đã swipe hết người dùng
+      setHasSwipedAllUsers(fetchedUsers.length === 0);
+      
+      // Reset index về 0 khi load dữ liệu mới
+      setCurrentIndex(0);
+      
+      // Cập nhật trang hiện tại
+      setCurrentPage(page);
+    } catch (error: any) {
+      console.error("Lỗi khi lấy danh sách người dùng gần:", error);
+      setError(`Lỗi khi lấy danh sách người dùng gần: ${error.message || 'Không xác định'}`);
+      setAllUsers([]);
+      setUsers([]);
+      setListUsers([]);
+      setTotalPages(1);
+      setHasSwipedAllUsers(true);
+    } finally {
+      setLoading(false);
     }
   };
+
+  // Load more users when reaching end
+  useEffect(() => {
+    if (users && currentIndex > users.length - 3 && currentPage < totalPages) {
+      const userData = JSON.parse(localStorage.getItem("user") || "{}");
+      fetchNearbyUsers(userData._id, currentPage + 1);
+      setCurrentPage(prev => prev + 1);
+    }
+  }, [currentIndex, users?.length, totalPages]);
 
   const handleLike = async (targetUserId: string) => {
     try {
@@ -200,7 +258,7 @@ const Home = ({
       const userId = userData._id;
       
       // Kiểm tra nếu đã quẹt hết người dùng
-      if (currentIndex >= users.length - 1) {
+      if (currentIndex >= users.length - 1 && currentPage >= totalPages) {
         setHasSwipedAllUsers(true);
       } else {
         setCurrentIndex((prevIndex) => prevIndex + 1);
@@ -217,12 +275,13 @@ const Home = ({
   };
 
   const handleDislike = () => {
-    // Kiểm tra nếu đã quẹt hết người dùng
-    if (currentIndex >= users.length - 1) {
-      setHasSwipedAllUsers(true);
+    // Đảm bảo currentIndex không vượt quá số lượng users
+    if (currentIndex < users.length - 1) {
+      setCurrentIndex(currentIndex + 1);
     } else {
-      setCurrentIndex((prevIndex) => prevIndex + 1);
+      setHasSwipedAllUsers(true);
     }
+    toast.info("Đã bỏ qua người dùng này");
   };
 
   const handleSelectUser = (userId: string) => {
@@ -267,45 +326,203 @@ const Home = ({
 
   const handleSettingsChanged = useCallback(() => {
     const userData = JSON.parse(localStorage.getItem("user") || "{}");
-    fetchUserIdAndNearbyUsers(localStorage.getItem("token") || "", userData._id);
+    fetchNearbyUsers(userData._id);
   }, []);
 
   // Thêm hàm để reset quẹt
   const handleResetSwipe = () => {
     setCurrentIndex(0);
+    setCurrentPage(1);
     setHasSwipedAllUsers(false);
-    setResetSwipe(prev => !prev);
+    const userData = JSON.parse(localStorage.getItem("user") || "{}");
+    fetchNearbyUsers(userData._id, 1);
   };
   
   // Thêm hàm để tìm xa hơn
   const handleSearchFarther = () => {
-    const savedPrefs = localStorage.getItem("searchPreferences");
-    const preferences = savedPrefs
-      ? JSON.parse(savedPrefs)
-      : { searchDistance: 1000 };
-    
-    // Tăng khoảng cách tìm kiếm lên 50%
-    const newDistance = preferences.searchDistance * 3;
-    const newPrefs = { ...preferences, searchDistance: newDistance };
-    
-    localStorage.setItem("searchPreferences", JSON.stringify(newPrefs));
-    
-    // Fetch lại danh sách người dùng
-    const userData = JSON.parse(localStorage.getItem("user") || "{}");
-    fetchUserIdAndNearbyUsers(localStorage.getItem("token") || "", userData._id);
-    
-    // Reset trạng thái
-    setHasSwipedAllUsers(false);
-    setCurrentIndex(0);
+    // Chỉ mở setting modal
+    setShowSettings(true);
   };
 
-  // Thêm hàm xử lý chuyển trang
+  // Xử lý thích/bỏ qua từ AI recommendations
+  const handleLikeFromAI = async (targetUserId: string) => {
+    try {
+      const userData = JSON.parse(localStorage.getItem("user") || "");
+      const userId = userData._id;
+
+      await axios.post(
+        `${import.meta.env.VITE_LOCAL_API_URL}/users/like`,
+        {
+          userId,
+          targetUserId,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+      
+      socket.emit("sendLike", {
+        currentUserId: userId,
+        targetUserId,
+        approveStatus: "pending",
+      });
+      
+      toast.success("Đã thích người dùng này!");
+    } catch (error) {
+      console.error("Error liking user:", error);
+      toast.error("Có lỗi xảy ra khi thích người dùng");
+    }
+  };
+
+  const handleDislikeFromAI = (targetUserId: string) => {
+    toast.info("Đã bỏ qua người dùng này");
+  };
+
+  const renderUserDetails = () => {
+    if (!selectedProfile) return null;
+    
+    return (
+      <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="relative">
+            {/* Nút đóng */}
+            <button
+              onClick={() => setSelectedProfile(null)}
+              className="absolute top-4 right-4 z-10 bg-white/80 backdrop-blur-sm p-2 rounded-full text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <i className="fas fa-times"></i>
+            </button>
+
+            {/* Ảnh đại diện */}
+            <div className="w-full h-80 bg-gray-200 relative">
+              <img
+                src={selectedProfile.profilePictures[0] || "/default-avatar.png"}
+                alt={selectedProfile.name}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6">
+                <h2 className="text-white text-3xl font-bold">
+                  {selectedProfile.name}, {selectedProfile.age}
+                </h2>
+                <p className="text-white/80 flex items-center gap-2">
+                  <i className="fas fa-map-marker-alt"></i>
+                  {selectedProfile.city}, {selectedProfile.district}
+                </p>
+              </div>
+            </div>
+
+            {/* Thông tin chi tiết */}
+            <div className="p-6">
+              {/* Bio */}
+              {selectedProfile.bio && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                    Giới thiệu
+                  </h3>
+                  <p className="text-gray-600">{selectedProfile.bio}</p>
+                </div>
+              )}
+
+              {/* Thông tin cơ bản */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-gray-700 mb-3">
+                  Thông tin cơ bản
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <InfoItem
+                    label="Tuổi"
+                    value={selectedProfile.age}
+                  />
+                  <InfoItem
+                    label="Cung hoàng đạo"
+                    value={selectedProfile.zodiacSign}
+                  />
+                  <InfoItem
+                    label="Giới tính"
+                    value={
+                      selectedProfile.gender === "male"
+                        ? "Nam"
+                        : selectedProfile.gender === "female"
+                        ? "Nữ"
+                        : "Khác"
+                    }
+                  />
+                  <InfoItem
+                    label="Học vấn"
+                    value={selectedProfile.education}
+                  />
+                  <InfoItem
+                    label="Thành phố"
+                    value={selectedProfile.city}
+                  />
+                  <InfoItem
+                    label="Quận/Huyện"
+                    value={selectedProfile.district}
+                  />
+                  <InfoItem
+                    label="Khoảng cách"
+                    value={
+                      selectedProfile.distance
+                        ? `${selectedProfile.distance.toFixed(1)} km`
+                        : "Không xác định"
+                    }
+                  />
+                </div>
+              </div>
+
+              {/* Sở thích */}
+              {selectedProfile.interests && selectedProfile.interests.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-gray-700 mb-3">
+                    Sở thích
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedProfile.interests.map((interest, index) => (
+                      <span
+                        key={index}
+                        className="bg-pink-100 text-pink-600 px-3 py-1 rounded-full text-sm"
+                      >
+                        {interest}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Nút like */}
+              <div className="flex justify-center mt-4">
+                <button
+                  onClick={() => {
+                    handleLike(selectedProfile._id);
+                    setSelectedProfile(null);
+                  }}
+                  className="bg-gradient-to-r from-pink-500 to-purple-500 text-white px-6 py-3 rounded-full font-medium hover:shadow-lg transition-shadow"
+                >
+                  <i className="fas fa-heart mr-2"></i>
+                  Thích
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Hàm xử lý khi chuyển trang trong ListView
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
+    
+    // Cập nhật listUsers dựa trên trang hiện tại
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = Math.min(startIndex + pageSize, allUsers.length);
+    setListUsers(allUsers.slice(startIndex, endIndex));
   };
 
   return (
-    <>
+    <div className="main-container">
       <ApproveNotice
         socket={socket}
         fromUserName={currentFromId}
@@ -316,383 +533,300 @@ const Home = ({
         fromUser={currentFromId}
         targetUser={currentMatchId}
       />
-      <div className="min-h-screen pt-16 bg-gradient-to-br from-purple-400 via-pink-400 to-pink-600 flex relative">
-        {/* UserLists container với responsive classes */}
-        <div
-          className={`
-                    fixed md:relative
-                    w-full md:w-1/3
-                    h-[calc(100vh-4rem)] md:min-h-[calc(100vh-4rem)] 
-                    bg-white
-                    transition-all duration-300 ease-in-out
-                    user-lists-sidebar
-                    ${showUserLists ? "right-0" : "-right-full md:right-0"}
-                    z-40 md:z-auto
-                    overflow-hidden
-                `}
-        >
-          <UserLists
-            refresh={refresh}
-            onSelectUser={handleSelectUser}
-            onClose={() => setShowUserLists(false)}
-          />
-        </div>
+      <div className="min-h-screen pt-16 bg-gradient-to-br from-purple-400 via-pink-400 to-pink-600 flex flex-col md:flex-row">
+        {/* Navigation component */}
+        <Navigation 
+          showUserLists={showUserLists}
+          setShowUserLists={setShowUserLists}
+          refresh={refresh}
+          onSelectUser={handleSelectUser}
+          unreadCount={unreadCount}
+        />
 
         {/* Main content */}
-        <div className="flex-1 p-4 md:p-6 overflow-y-auto">
-          {/* Header section with improved layout */}
-          <div className="bg-white rounded-xl shadow-lg mb-4">
+        <div className="flex-1 p-4 md:px-6 lg:px-8 overflow-y-auto">
+          {/* Header section */}
+          <div className="bg-white/95 backdrop-blur-lg rounded-2xl shadow-lg mb-6">
             <div className="flex items-center justify-between p-6">
               <div className="flex-1">
-                <h1 className="text-2xl font-extrabold text-gray-800">
+                <h1 className="text-2xl md:text-3xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
                   Gặp gỡ người mới
                 </h1>
-                <p className="text-gray-500 mt-1">
+                <p className="text-gray-500 mt-2">
                   Khám phá những người dùng phù hợp trong khu vực của bạn
                 </p>
               </div>
 
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <button
-                    onClick={() => setViewMode("list")}
-                    className={`px-4 py-2 rounded-lg transition-colors ${
-                      viewMode === "list"
-                        ? "bg-gray-800 text-white"
-                        : "bg-white text-gray-800 hover:bg-gray-100"
-                    }`}
-                  >
-                    <i className="fas fa-th-large mr-2"></i>
-                    Danh sách
-                  </button>
-                  <button
-                    onClick={() => setViewMode("swipe")}
-                    className={`px-4 py-2 rounded-lg transition-colors ${
-                      viewMode === "swipe"
-                        ? "bg-gray-800 text-white"
-                        : "bg-white text-gray-800 hover:bg-gray-100"
-                    }`}
-                  >
-                    <i className="fas fa-exchange-alt mr-2"></i>
-                    Quẹt
-                  </button>
-                  <button
-                    onClick={() => setViewMode("ai")}
-                    className={`px-4 py-2 rounded-lg transition-colors ${
-                      viewMode === "ai"
-                        ? "bg-gray-800 text-white"
-                        : "bg-white text-gray-800 hover:bg-gray-100"
-                    }`}
-                  >
-                    <i className="fas fa-brain mr-2"></i>
-                    AI
-                  </button>
-                </div>
-
-                {/* Settings button */}
                 <button
                   onClick={() => setShowSettings(true)}
-                  className="p-3 hover:bg-gray-100 rounded-full transition-colors"
+                  className="p-3 hover:bg-gray-100 rounded-full transition-colors group relative"
                 >
-                  <i className="fas fa-cog text-gray-600"></i>
+                  <i className="fas fa-cog text-gray-600 group-hover:rotate-90 transition-transform duration-300"></i>
+                  <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                    Cài đặt
+                  </span>
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Settings Modal */}
-          {showSettings && (
-            <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
-              <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative">
-                {/* Thêm nút đóng ở góc trên bên phải */}
-                <button
-                  onClick={() => setShowSettings(false)}
-                  className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-full transition duration-300 z-10"
-                >
-                  <i className="fas fa-times text-xl"></i>
-                </button>
-
-                <SearchSettings
-                  onClose={() => setShowSettings(false)}
-                  onSettingsChanged={handleSettingsChanged}
-                />
-              </div>
+          {/* View mode selector */}
+          <div className="flex justify-center mb-6">
+            <div className="inline-flex bg-white/95 backdrop-blur-lg rounded-xl shadow-lg p-1">
+              <button
+                className={`px-6 py-2.5 text-sm font-medium rounded-lg flex items-center gap-2 transition-all duration-300 ${
+                  viewMode === "swipe"
+                    ? "bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-lg scale-105"
+                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                }`}
+                onClick={() => setViewMode("swipe")}
+              >
+                <i className="fas fa-exchange-alt"></i>
+                Vuốt
+              </button>
+              <button
+                className={`px-6 py-2.5 text-sm font-medium rounded-lg flex items-center gap-2 transition-all duration-300 ${
+                  viewMode === "list"
+                    ? "bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-lg scale-105"
+                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                }`}
+                onClick={() => setViewMode("list")}
+              >
+                <i className="fas fa-list"></i>
+                Danh sách
+              </button>
             </div>
-          )}
+          </div>
 
-          {/* Sử dụng các component mới */}
-          {viewMode === "list" && (
-            <ListView 
-              currentUsers={currentUsers} 
-              onSelectProfile={setSelectedProfile} 
-            />
-          )}
-
-          {viewMode === "swipe" && (
-            <SwipeView
-              users={users}
-              currentIndex={currentIndex}
-              hasSwipedAllUsers={hasSwipedAllUsers}
-              onLike={handleLike}
-              onDislike={handleDislike}
-              onResetSwipe={handleResetSwipe}
-              onSearchFarther={handleSearchFarther}
-            />
-          )}
-
-          {viewMode === "ai" && (
-            <AIRecommendations
-              users={users}
-              onSelectProfile={setSelectedProfile}
-              onLike={handleLike}
-            />
-          )}
-
-          {/* Chỉ hiển thị phân trang khi ở chế độ danh sách */}
-          {viewMode === "list" && (
-            <div className="flex justify-center mt-3 2xl:mt-6 gap-3">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <button
-                  key={page}
-                  onClick={() => handlePageChange(page)}
-                  className={`px-4 py-2 rounded-lg ${
-                    currentPage === page
-                      ? "bg-gray-800 text-white"
-                      : "bg-white text-gray-800 hover:bg-gray-100"
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        {/* User Profile Modal */}
-        {selectedProfile && (
-          <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
-              <div className="p-6 md:p-8">
-                {/* Header với nút đóng */}
-                <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
-                  <h2 className="text-2xl font-bold text-gray-800">
-                    Thông tin chi tiết
-                  </h2>
-                  <button
-                    onClick={() => setSelectedProfile(null)}
-                    className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-full transition duration-300"
-                  >
-                    <i className="fas fa-times text-xl"></i>
-                  </button>
-                </div>
-
-                <div className="flex flex-col md:flex-row gap-8">
-                  {/* Cột trái - Avatar và thông tin cơ bản */}
-                  <div className="w-full md:w-1/3">
-                    <div className="sticky top-0">
-                      <div className="flex flex-col items-center bg-gradient-to-b from-pink-50 to-purple-50 rounded-2xl p-6">
-                        <div className="w-40 h-40 md:w-48 md:h-48 rounded-2xl border-4 border-white shadow-lg overflow-hidden mb-4">
-                          <img
-                            src={
-                              selectedProfile.profilePictures[0] ||
-                              "https://via.placeholder.com/150"
-                            }
-                            alt={selectedProfile.name}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <h2 className="text-2xl font-bold text-gray-800 mb-2">
-                          {selectedProfile.name}
-                        </h2>
-                        <p className="text-gray-600 mb-2">
-                          {selectedProfile.email}
-                        </p>
-                        <div className="bg-white rounded-xl p-4 w-full mt-2">
-                          <p className="text-gray-600 italic text-center">
-                            "{selectedProfile.bio || "Chưa có tiểu sử"}"
-                          </p>
-                        </div>
-                        {/* Giữ nguyên nút thích/không thích */}
-                        <div className="flex gap-4 mt-6 w-full">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDislike();
-                              setSelectedProfile(null);
-                            }}
-                            className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold py-3 px-6 rounded-full transition duration-300"
-                          >
-                            <i className="fas fa-times"></i>
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleLike(selectedProfile._id);
-                              setSelectedProfile(null);
-                            }}
-                            className="flex-1 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold py-3 px-6 rounded-full transition duration-300"
-                          >
-                            <i className="fas fa-heart"></i>
-                          </button>
-                        </div>
+          {/* Content container */}
+          <div className="transition-all duration-300 ease-in-out">
+            {viewMode === "swipe" && (
+              <div className="flex flex-col lg:flex-row gap-6 justify-center items-start max-w-[1600px] mx-auto">
+                {/* Cột bên trái - Mẹo hẹn hò */}
+                <div className="hidden lg:flex flex-col gap-6 w-[300px] xl:w-[320px] flex-shrink-0">
+                  {/* Mẹo hẹn hò */}
+                  <div className="bg-white/95 backdrop-blur-lg rounded-2xl shadow-lg p-6">
+                    <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                      <i className="fas fa-lightbulb text-yellow-500"></i>
+                      Mẹo hẹn hò
+                    </h3>
+                    <p className="text-gray-600 italic">
+                      "Hãy thành thật về bản thân và tìm kiếm sự kết nối thực sự thay vì chỉ tập trung vào vẻ bề ngoài."
+                    </p>
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <button className="text-purple-500 text-sm hover:underline">
+                        Xem thêm mẹo
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Thống kê ứng dụng */}
+                  <div className="bg-white/95 backdrop-blur-lg rounded-2xl shadow-lg p-6">
+                    <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                      <i className="fas fa-heart text-pink-500"></i>
+                      Thống kê
+                    </h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Người dùng online</span>
+                        <span className="font-semibold text-green-500">1,245</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Kết nối hôm nay</span>
+                        <span className="font-semibold text-pink-500">328</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Tin nhắn đã gửi</span>
+                        <span className="font-semibold text-purple-500">12,456</span>
                       </div>
                     </div>
                   </div>
-
-                  {/* Cột phải - Thông tin chi tiết */}
-                  <div className="flex-1 space-y-6">
-                    {/* Thông tin cá nhân */}
-                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition duration-300">
-                      <h3 className="text-xl font-bold text-purple-600 mb-4 flex items-center gap-2">
-                        <i className="fas fa-user-circle"></i>
-                        Thông tin cá nhân
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <InfoItem label="Tuổi" value={selectedProfile.age} />
-                        <InfoItem
-                          label="Học vấn"
-                          value={selectedProfile.education}
-                        />
-                        <InfoItem
-                          label="Cung hoàng đạo"
-                          value={selectedProfile.zodiacSign}
-                        />
-                        <InfoItem
-                          label="Giới tính"
-                          value={
-                            selectedProfile.gender === "male"
-                              ? "Nam"
-                              : selectedProfile.gender === "female"
-                              ? "Nữ"
-                              : "Khác"
-                          }
-                        />
-                        <InfoItem
-                          label="Xu hướng tìm kiếm"
-                          value={
-                            selectedProfile.genderPreference === "male"
-                              ? "Nam"
-                              : selectedProfile.genderPreference === "female"
-                              ? "Nữ"
-                              : "Cả hai"
-                          }
-                        />
+                  
+                  {/* Hướng dẫn sử dụng */}
+                  <div className="bg-white/95 backdrop-blur-lg rounded-2xl shadow-lg p-6">
+                    <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                      <i className="fas fa-question-circle text-blue-500"></i>
+                      Hướng dẫn
+                    </h3>
+                    <ul className="space-y-2 text-gray-600">
+                      <li className="flex items-start gap-2">
+                        <i className="fas fa-arrow-right text-blue-500 mt-1"></i>
+                        <span>Vuốt phải để thích người dùng</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <i className="fas fa-arrow-right text-blue-500 mt-1"></i>
+                        <span>Vuốt trái để bỏ qua</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <i className="fas fa-arrow-right text-blue-500 mt-1"></i>
+                        <span>Nhấn vào ảnh để xem thêm</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+                
+                {/* Cột giữa - SwipeView */}
+                <div className="flex-shrink-0 mx-auto lg:mx-0">
+                  <SwipeView
+                    users={users}
+                    currentIndex={currentIndex}
+                    hasSwipedAllUsers={hasSwipedAllUsers}
+                    onLike={handleLike}
+                    onDislike={handleDislike}
+                    onResetSwipe={handleResetSwipe}
+                    onSearchFarther={handleSearchFarther}
+                  />
+                </div>
+                
+                {/* Cột bên phải - Thông tin chi tiết */}
+                <div className="w-full lg:w-[320px] xl:w-[350px] flex flex-col gap-6 flex-shrink-0">
+                  {/* Thống kê hoạt động */}
+                  <div className="bg-white/95 backdrop-blur-lg rounded-2xl shadow-lg p-6">
+                    <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                      <i className="fas fa-chart-line text-purple-500"></i>
+                      Hoạt động của bạn
+                    </h3>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Đã xem</span>
+                        <span className="font-semibold">{currentIndex + 1}/{users.length}</span>
                       </div>
-                    </div>
-
-                    {/* Sở thích */}
-                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition duration-300">
-                      <h3 className="text-xl font-bold text-pink-600 mb-4 flex items-center gap-2">
-                        <i className="fas fa-heart"></i>
-                        Sở thích
-                      </h3>
-                      <div className="flex flex-wrap gap-2 mb-6">
-                        {selectedProfile.interests?.map((interest, index) => (
-                          <span
-                            key={index}
-                            className="bg-pink-50 text-pink-600 px-4 py-2 rounded-full text-sm border border-pink-200 hover:bg-pink-100 transition duration-300"
-                          >
-                            {interest}
-                          </span>
-                        ))}
+                      <div className="w-full bg-gray-200 rounded-full h-2.5">
+                        <div 
+                          className="bg-gradient-to-r from-pink-500 to-purple-500 h-2.5 rounded-full" 
+                          style={{ width: `${users.length > 0 ? ((currentIndex + 1) / users.length) * 100 : 0}%` }}
+                        ></div>
                       </div>
-                      <h4 className="text-lg font-semibold text-gray-700 mb-2">
-                        Thường làm gì khi rãnh
-                      </h4>
-                      <p className="text-gray-600 bg-gray-50 p-3 rounded-xl">
-                        {selectedProfile.hobbies || "Chưa cập nhật"}
-                      </p>
+                      
                     </div>
-
-                    {/* Thư viện ảnh */}
-                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition duration-300">
-                      <h3 className="text-xl font-bold text-green-600 mb-4 flex items-center gap-2">
-                        <i className="fas fa-images"></i>
-                        Hình ảnh
-                      </h3>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {selectedProfile.profilePictures.map((pic, index) => (
-                          <div
-                            key={index}
-                            className="relative group cursor-pointer"
-                            onClick={() => setSelectedImage(pic)}
-                          >
-                            <img
-                              src={pic}
-                              alt={`${selectedProfile.name} - ${index + 1}`}
-                              className="w-full h-48 object-cover rounded-xl hover:opacity-90 transition duration-300 border border-gray-100"
-                            />
-                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition duration-300 rounded-xl flex items-center justify-center">
-                              <i className="fas fa-search-plus text-white opacity-0 group-hover:opacity-100 text-xl"></i>
+                  </div>
+                  
+                  {/* Người dùng hiện tại */}
+                  {users[currentIndex] && (
+                    <div className="bg-white/95 backdrop-blur-lg rounded-2xl shadow-lg overflow-hidden">
+                      <div className="p-6">
+                        <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                          <i className="fas fa-user text-pink-500"></i>
+                          Thông tin chi tiết
+                        </h3>
+                        <div className="space-y-3">
+                          <div>
+                            <span className="text-gray-500 text-sm">Tuổi</span>
+                            <p className="font-medium">{users[currentIndex].age} tuổi</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500 text-sm">Vị trí</span>
+                            <p className="font-medium">{users[currentIndex].city}, {users[currentIndex].district}</p>
+                          </div>
+                          {users[currentIndex].education && (
+                            <div>
+                              <span className="text-gray-500 text-sm">Học vấn</span>
+                              <p className="font-medium">{users[currentIndex].education}</p>
+                            </div>
+                          )}
+                          {users[currentIndex].zodiacSign && (
+                            <div>
+                              <span className="text-gray-500 text-sm">Cung hoàng đạo</span>
+                              <p className="font-medium">{users[currentIndex].zodiacSign}</p>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {users[currentIndex].interests && users[currentIndex].interests.length > 0 && (
+                          <div className="mt-4">
+                            <span className="text-gray-500 text-sm">Sở thích</span>
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              {users[currentIndex].interests.map((interest, idx) => (
+                                <span key={idx} className="bg-pink-100 text-pink-600 text-xs px-3 py-1 rounded-full">
+                                  {interest}
+                                </span>
+                              ))}
                             </div>
                           </div>
-                        ))}
+                        )}
+                        
+                        <button
+                          onClick={() => setSelectedProfile(users[currentIndex])}
+                          className="w-full mt-4 bg-gradient-to-r from-pink-500 to-purple-500 text-white py-2 rounded-lg font-medium hover:opacity-90 transition-opacity"
+                        >
+                          Xem đầy đủ
+                        </button>
                       </div>
                     </div>
-
-                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition duration-300">
-                      <h3 className="text-xl font-bold text-purple-600 mb-4 flex items-center gap-2">
-                        <i className="fas fa-map-marker-alt"></i>
-                        Vị trí
-                      </h3>
-                      <div className="grid grid-cols-1 gap-4">
-                        <InfoItem
-                          label="Thành phố"
-                          value={selectedProfile.city}
-                        />
-                        <InfoItem
-                          label="Quận/Huyện"
-                          value={selectedProfile.district}
-                        />
-                        <InfoItem
-                          label="Khoảng cách"
-                          value={`${selectedProfile.distance ? selectedProfile.distance.toFixed(1) : '?'} km`}
-                        />
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
-            </div>
-          </div>
-        )}
+            )}
 
-        {/* Image Viewer Modal */}
-        {selectedImage && (
-          <div className="fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center p-4">
-            <div className="relative w-full max-w-4xl">
-              <button
-                onClick={() => setSelectedImage(null)}
-                className="absolute top-4 right-4 text-white text-2xl hover:text-gray-300"
-              >
-                <i className="fas fa-times"></i>
-              </button>
-              <img
-                src={selectedImage}
-                alt="Enlarged view"
-                className="w-full h-auto max-h-[90vh] object-contain"
+            {viewMode === "list" && (
+              <ListView
+                currentUsers={listUsers}
+                onSelectProfile={setSelectedProfile}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
               />
-            </div>
+            )}
           </div>
-        )}
-
-        {/* Location Update Modal */}
-        {showLocationModal && (
-          <LocationUpdateModal
-            isOpen={showLocationModal}
-            onClose={() => setShowLocationModal(false)}
-            onLocationUpdated={() => {
-              setShowLocationModal(false);
-              // Refresh user list after location update
-              const userData = JSON.parse(localStorage.getItem("user") || "{}");
-              fetchUserIdAndNearbyUsers(
-                localStorage.getItem("token") || "",
-                userData._id
-              );
-            }}
-          />
-        )}
+        </div>
       </div>
-    </>
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative">
+            {/* Thêm nút đóng ở góc trên bên phải */}
+            <button
+              onClick={() => setShowSettings(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-full transition duration-300 z-10"
+            >
+              <i className="fas fa-times text-xl"></i>
+            </button>
+
+            <SearchSettings
+              onClose={() => setShowSettings(false)}
+              onSettingsChanged={handleSettingsChanged}
+            />
+          </div>
+        </div>
+      )}
+
+      {renderUserDetails()}
+
+      {/* Image Viewer Modal */}
+      {selectedImage && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center p-4">
+          <div className="relative w-full max-w-4xl">
+            <button
+              onClick={() => setSelectedImage(null)}
+              className="absolute top-4 right-4 text-white text-2xl hover:text-gray-300"
+            >
+              <i className="fas fa-times"></i>
+            </button>
+            <img
+              src={selectedImage}
+              alt="Enlarged view"
+              className="w-full h-auto max-h-[90vh] object-contain"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Location Update Modal */}
+      {showLocationModal && (
+        <LocationUpdateModal
+          isOpen={showLocationModal}
+          onClose={() => setShowLocationModal(false)}
+          onLocationUpdated={() => {
+            setShowLocationModal(false);
+            // Refresh user list after location update
+            const userData = JSON.parse(localStorage.getItem("user") || "{}");
+            fetchNearbyUsers(userData._id);
+          }}
+        />
+      )}
+    </div>
   );
 };
 

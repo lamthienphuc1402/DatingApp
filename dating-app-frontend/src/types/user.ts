@@ -10,9 +10,19 @@ export interface User {
   zodiacSign: string;
   education: string;
   hobbies: string;
-  gender: 'male' | 'female' | 'other';
-  genderPreference: 'male' | 'female' | 'both';
+  gender: "male" | "female" | "other";
+  genderPreference: "male" | "female" | "both";
+  city: string;
+  district: string;
+  location?: {
+    type: string;
+    coordinates: number[];
+  };
   matchScore?: number;
+  distance?: number;
+  likedUsers?: string[];
+  matchedUsers?: string[];
+  likedBy?: string[];
 }
 
 export interface UserData {

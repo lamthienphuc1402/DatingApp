@@ -7,13 +7,23 @@ const streamifier = require('streamifier');
 
 @Injectable()
 export class CloudinaryService {
-  uploadFile(file: any): Promise<CloudinaryResponse> {
+  uploadFile(file: Express.Multer.File): Promise<CloudinaryResponse> {
     return new Promise<CloudinaryResponse>((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
-        { folder: 'profileImage' },
+        {
+          folder: 'profileImage',
+          resource_type: 'auto',
+          allowed_formats: ['jpg', 'jpeg', 'png', 'gif'],
+          transformation: [
+            { width: 800, height: 800, crop: 'limit' },
+            { quality: 'auto:good' }
+          ]
+        },
         (error, result) => {
-          console.log(result);
-          if (error) return reject(error);
+          if (error) {
+            console.error('Lỗi khi upload ảnh lên Cloudinary:', error);
+            return reject(error);
+          }
           resolve(result);
         },
       );
@@ -21,18 +31,20 @@ export class CloudinaryService {
       streamifier.createReadStream(file.buffer).pipe(uploadStream);
     });
   }
-  deleteImage(publicId: string) {
-    console.log(publicId);
-    cloudinary.uploader.destroy(
-      `profileImage/${publicId}`,
-      {},
-      (error, result) => {
-        if (error) {
-          console.log(error);
-        }
-        console.log(result);
-        return result;
-      },
-    );
+
+  deleteImage(publicId: string): Promise<CloudinaryResponse> {
+    return new Promise((resolve, reject) => {
+      cloudinary.uploader.destroy(
+        `profileImage/${publicId}`,
+        {},
+        (error, result) => {
+          if (error) {
+            console.error('Lỗi khi xóa ảnh từ Cloudinary:', error);
+            return reject(error);
+          }
+          resolve(result);
+        },
+      );
+    });
   }
 }

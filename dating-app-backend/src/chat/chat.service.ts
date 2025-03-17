@@ -28,11 +28,7 @@ export class ChatService {
         const savedMessage = await message.save();
         
         // Emit sự kiện qua WebSocket
-        await this.chatGateway.emitNewMessage(
-            payload.senderId,
-            payload.receiverId,
-            savedMessage
-        );
+        this.chatGateway.sendMessageToUser(payload.receiverId, 'message', savedMessage);
         
         return savedMessage;
     }

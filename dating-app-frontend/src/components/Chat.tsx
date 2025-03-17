@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { format, parseISO } from "date-fns";
 import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
-import AIInsights from './AI/AIInsights';
+import { useSocket } from '../SocketContext';
 
 // Định nghĩa kiểu cho tin nhắn
 interface Message {
@@ -34,6 +34,7 @@ const Chat: React.FC<ChatProps> = ({
   targetUserIsOnline,
   onBack,
 }) => {
+  const { socket } = useSocket();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [error, setError] = useState("");
@@ -44,13 +45,36 @@ const Chat: React.FC<ChatProps> = ({
     messageId: string;
     show: boolean;
   }>({ messageId: "", show: false });
-  const [showAIInsights, setShowAIInsights] = useState(false);
 
   useEffect(() => {
-    fetchMessages();
-    const interval = setInterval(fetchMessages, 1000); // Cập nhật tin nhắn mỗi 1 giây
-    return () => clearInterval(interval);
-  }, []);
+    if (!socket) return;
+
+    // Lấy tin nhắn ban đầu
+    socket.emit('getMessages', { userId1: userId, userId2: targetUserId });
+
+    // Lắng nghe tin nhắn mới
+    socket.on('message', (newMessage: Message) => {
+      if (newMessage.senderId === targetUserId || newMessage.senderId === userId) {
+        setMessages(prev => [...prev, newMessage]);
+      }
+    });
+
+    // Lắng nghe danh sách tin nhắn
+    socket.on('messages', (messageList: Message[]) => {
+      setMessages(messageList);
+    });
+
+    // Lắng nghe lỗi
+    socket.on('error', (error: { message: string }) => {
+      setError(error.message);
+    });
+
+    return () => {
+      socket.off('message');
+      socket.off('messages');
+      socket.off('error');
+    };
+  }, [socket, userId, targetUserId]);
 
   useEffect(() => {
     if (isAtBottom) {
@@ -93,46 +117,17 @@ const Chat: React.FC<ChatProps> = ({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const fetchMessages = async () => {
-    try {
-      const response = await axios.get(
-        `${
-          import.meta.env.VITE_LOCAL_API_URL
-        }/chat/messages?userId1=${userId}&userId2=${targetUserId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-      setMessages(response.data);
-    } catch (err) {
-      setError("Không thể lấy tin nhắn.");
-    }
-  };
-
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
-    try {
-      const response = await axios.post(
-        `${import.meta.env.VITE_LOCAL_API_URL}/chat/send`,
-        {
-          senderId: userId,
-          receiverId: targetUserId,
-          content: newMessage,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-      setMessages((prevMessages) => [...prevMessages, response.data]);
-      setNewMessage("");
-    } catch (err) {
-      setError("Không thể gửi tin nhắn.");
-    }
+    if (!newMessage.trim() || !socket) return;
+
+    socket.emit('sendMessage', {
+      senderId: userId,
+      receiverId: targetUserId,
+      content: newMessage,
+    });
+    
+    setNewMessage("");
   };
 
   const formatDate = (date: string) => {
@@ -155,34 +150,15 @@ const Chat: React.FC<ChatProps> = ({
   };
 
   const handleReaction = async (messageId: string, emoji: string) => {
-    try {
-      const response = await axios.post(
-        `${
-          import.meta.env.VITE_LOCAL_API_URL
-        }/chat/messages/${messageId}/reactions`,
-        {
-          userId,
-          emoji,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+    if (!socket) return;
 
-      setMessages((prevMessages) =>
-        prevMessages.map((msg) =>
-          msg._id === messageId
-            ? { ...msg, reactions: response.data.reactions }
-            : msg
-        )
-      );
+    socket.emit('addReaction', {
+      messageId,
+      userId,
+      emoji,
+    });
 
-      setShowReactionPicker({ messageId: "", show: false });
-    } catch (err) {
-      setError("Không thể thêm reaction.");
-    }
+    setShowReactionPicker({ messageId: "", show: false });
   };
 
   return (
@@ -216,19 +192,10 @@ const Chat: React.FC<ChatProps> = ({
             </div>
           </div>
         </div>
-        <button
-          onClick={() => setShowAIInsights(!showAIInsights)}
-          className={`p-2 rounded-full transition-colors ${
-            showAIInsights ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100'
-          }`}
-          title="Phân tích AI"
-        >
-          <i className="fas fa-brain"></i>
-        </button>
       </div>
 
       <div className="flex-1 flex">
-        <div className={`flex-1 flex flex-col ${showAIInsights ? 'w-2/3' : 'w-full'}`}>
+        <div className="flex-1 flex flex-col w-full">
           {/* Existing chat content */}
           <div className="flex-1 p-4 overflow-y-auto">
             {error && <p className="text-red-500 text-center">{error}</p>}
@@ -365,12 +332,6 @@ const Chat: React.FC<ChatProps> = ({
             </form>
           </div>
         </div>
-
-        {showAIInsights && (
-          <div className="w-1/3 border-l">
-            <AIInsights userId={userId} matchId={targetUserId} />
-          </div>
-        )}
       </div>
     </div>
   );

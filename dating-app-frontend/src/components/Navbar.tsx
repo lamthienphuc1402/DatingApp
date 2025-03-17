@@ -32,41 +32,50 @@ const Navbar = ({ isLoggedIn, setIsLoggedIn, setUserId, showUserLists, setShowUs
         >
           <img src={ICO} alt="Logo" className="w-6 h-6 sm:w-8 sm:h-8" />
           <span className="hidden sm:inline">Dating App</span>
-          <span className="sm:hidden">Dating App</span>
+          <span className="sm:hidden">Dating</span>
         </Link>
-        <div className="space-x-2 sm:space-x-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           {isLoggedIn ? (
             <>
               <Link
                 to={`/users/${JSON.parse(localStorage.getItem("user") || "{}")._id}`}
-                className="text-white bg-pink-500 hover:bg-pink-600 px-2 sm:px-4 py-1 sm:py-2 text-sm sm:text-base rounded-full font-medium transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-opacity-50"
+                className="text-white bg-pink-500 hover:bg-pink-600 px-3 py-1.5 text-sm rounded-full font-medium transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-opacity-50"
               >
-                Hồ Sơ
+                <i className="fas fa-user sm:mr-2"></i>
+                <span className="hidden sm:inline">Hồ Sơ</span>
+              </Link>
+              <Link
+                to="/ai"
+                className="text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:opacity-90 px-3 py-1.5 text-sm rounded-full font-medium transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-50 flex items-center gap-2"
+              >
+                <i className="fas fa-robot"></i>
+                <span className="hidden sm:inline">AI Đề xuất</span>
               </Link>
               <button
                 onClick={handleLogout}
-                className="text-white bg-purple-500 hover:bg-purple-600 px-2 sm:px-4 py-1 sm:py-2 text-sm sm:text-base rounded-full font-medium transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-50"
+                className="text-white bg-purple-500 hover:bg-purple-600 px-3 py-1.5 text-sm rounded-full font-medium transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-50"
               >
-                Đăng Xuất
+                <i className="fas fa-sign-out-alt sm:mr-2"></i>
+                <span className="hidden sm:inline">Đăng Xuất</span>
               </button>
               <button
                 onClick={() => setShowUserLists?.(!showUserLists)}
-                className="md:hidden bg-pink-500 px-2 py-1 rounded-xl font-medium text-white transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-opacity-50"
+                className="md:hidden bg-pink-500 hover:bg-pink-600 px-2 py-1 rounded-full text-white transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-opacity-50"
               >
-                <i className={`fas ${showUserLists ? 'fa-times' : 'fa-list-ul'} text-lg`}></i>
+                <i className={`fas ${showUserLists ? 'fa-times' : 'fa-comments'} text-lg`}></i>
               </button>
             </>
           ) : (
             <>
               <Link
                 to="/login"
-                className="text-white bg-pink-500 hover:bg-pink-600 px-2 sm:px-4 py-1 sm:py-2 text-sm sm:text-base rounded-full font-medium transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-opacity-50"
+                className="text-white bg-pink-500 hover:bg-pink-600 px-3 py-1.5 text-sm rounded-full font-medium transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-opacity-50"
               >
                 Đăng Nhập
               </Link>
               <Link
                 to="/register"
-                className="text-white bg-purple-500 hover:bg-purple-600 px-2 sm:px-4 py-1 sm:py-2 text-sm sm:text-base rounded-full font-medium transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-50"
+                className="text-white bg-purple-500 hover:bg-purple-600 px-3 py-1.5 text-sm rounded-full font-medium transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-50"
               >
                 Đăng Ký
               </Link>

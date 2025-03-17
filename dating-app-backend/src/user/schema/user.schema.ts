@@ -48,8 +48,8 @@ export class User {
   // Định nghĩa trường _id
   _id: Types.ObjectId; // Hoặc bạn có thể bỏ qua dòng này, Mongoose sẽ tự động tạo
 
-  @Prop({ type: [String], default: [] }) // Danh sách ID của người dùng mà họ đã thích
-  likedUsers: string[];
+  @Prop({ type: [Types.ObjectId], ref: 'User', default: [] }) // Danh sách ID của người dùng mà họ đã thích
+  likedUsers: Types.ObjectId[];
 
   @Prop({ type: [Types.ObjectId], ref: 'User', default: [] }) // Danh sách người dùng đã thích mình
   likedBy: Types.ObjectId[];

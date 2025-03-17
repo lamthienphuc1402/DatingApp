@@ -1,7 +1,7 @@
 import { useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSubmitLogin } from "./hooks/useLogin";
-import { SocketContext } from "../../SocketContext";
+import { useSocket } from "../../SocketContext";
 import { toast } from 'react-toastify';
 
 export type LoginType = {
@@ -14,13 +14,13 @@ const Login = ({ setIsLoggedIn, setUserId }: LoginType) => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<any>("");
   const navigate = useNavigate();
-  const socketContext: any = useContext(SocketContext);
+  const { connect } = useSocket();
   const submit = useSubmitLogin(
     navigate,
     setError,
     setIsLoggedIn,
     setUserId,
-    socketContext.setCurrentSocket
+    connect
   );
   const handleEmailChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(event.target.value);

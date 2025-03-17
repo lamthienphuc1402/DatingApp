@@ -23,6 +23,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import LandingPage from "./components/Landing/LandingPage";
 import FeedbackButton from "./components/FeedbackButton";
 import FeedbackManagement from "./components/Admin/FeedbackManagement";
+import AIPage from './pages/AIPage';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -83,6 +84,16 @@ function App() {
                 <Login setIsLoggedIn={setIsLoggedIn} setUserId={setUserId} />
               ) : (
                 <UserProfile setIsLoggedIn={setIsLoggedIn} />
+              )
+            }
+          />
+          <Route
+            path="/ai"
+            element={
+              checkLogin ? (
+                <Login setIsLoggedIn={setIsLoggedIn} setUserId={setUserId} />
+              ) : (
+                <AIPage />
               )
             }
           />

@@ -48,6 +48,27 @@ export class AdminController {
   }
 
   @UseGuards(AdminAuthGuard)
+  @Get('ai/model-stats')
+  @ApiOperation({ summary: 'Lấy thống kê về AI model' })
+  async getModelStats() {
+    return this.adminService.getModelStats();
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Get('ai/match-distribution')
+  @ApiOperation({ summary: 'Lấy phân phối điểm match' })
+  async getMatchDistribution() {
+    return this.adminService.getMatchDistribution();
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Post('ai/train')
+  @ApiOperation({ summary: 'Train lại AI model' })
+  async trainModel() {
+    return this.adminService.trainModel();
+  }
+
+  @UseGuards(AdminAuthGuard)
   @Delete('users/:userId')
   @ApiOperation({ summary: 'Xóa người dùng' })
   @ApiResponse({ status: 200, description: 'Người dùng đã được xóa' })

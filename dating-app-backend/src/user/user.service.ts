@@ -7,7 +7,7 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { User, UserDocument } from './schema/user.schema';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -139,6 +139,12 @@ export class UserService {
     // Xây dựng query điều kiện giới tính
     const genderQuery = this.buildGenderPreferenceQuery(user);
 
+    // Chuyển đổi các ID thành ObjectId
+    const excludedIds = [
+      ...(user.likedUsers || []).map(id => new Types.ObjectId(id.toString())),
+      ...(user.matchedUsers || []).map(id => new Types.ObjectId(id.toString()))
+    ];
+
     // Sử dụng $geoNear để lấy khoảng cách
     const nearbyUsers = await this.userModel.aggregate([
       {
@@ -156,8 +162,8 @@ export class UserService {
       {
         $match: {
           _id: { 
-            $ne: user._id,
-            $nin: user.likedUsers 
+            $ne: new Types.ObjectId(user._id.toString()),
+            $nin: excludedIds
           },
           ...(genderQuery ? genderQuery : {}),
         },
@@ -335,9 +341,7 @@ export class UserService {
     if (!user) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
-
-    // Giả sử bạn có một trường `likedUsers` trong mô hình người dùng để lưu danh sách người dùng mà họ đã thích
-    return user.likedUsers.includes(targetUserId);
+    return user.likedUsers.some(id => id.toString() === targetUserId);
   }
 
   async sendNotification(
@@ -364,8 +368,9 @@ export class UserService {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
 
-    if (!user.likedUsers.includes(targetUserId)) {
-      user.likedUsers.push(targetUserId); // Thêm targetUserId vào danh sách likedUsers
+    const targetObjectId = new Types.ObjectId(targetUserId);
+    if (!user.likedUsers.some(id => id.equals(targetObjectId))) {
+      user.likedUsers.push(targetObjectId);
       await user.save();
     }
 
@@ -375,21 +380,21 @@ export class UserService {
       throw new HttpException('Target user not found', HttpStatus.NOT_FOUND);
     }
 
-    if (!targetUser.likedBy.includes(user._id)) {
-      targetUser.likedBy.push(user._id); // Thêm userId vào danh sách likedBy
-
+    const userObjectId = new Types.ObjectId(userId);
+    if (!targetUser.likedBy.some(id => id.equals(userObjectId))) {
+      targetUser.likedBy.push(userObjectId);
       await targetUser.save();
     }
 
     // Kiểm tra xem người dùng đã thích nhau chưa
-    if (targetUser.likedUsers.includes(userId)) {
+    if (targetUser.likedUsers.some(id => id.toString() === userId)) {
       // Nếu cả hai người dùng đã thích nhau, thêm vào danh sách matchedUsers
-      if (!user.matchedUsers.includes(targetUser._id)) {
-        user.matchedUsers.push(targetUser._id);
+      if (!user.matchedUsers.some(id => id.equals(targetObjectId))) {
+        user.matchedUsers.push(targetObjectId);
         await user.save();
       }
-      if (!targetUser.matchedUsers.includes(user._id)) {
-        targetUser.matchedUsers.push(user._id);
+      if (!targetUser.matchedUsers.some(id => id.equals(userObjectId))) {
+        targetUser.matchedUsers.push(userObjectId);
         await targetUser.save();
       }
     }
@@ -680,7 +685,7 @@ export class UserService {
         { _id: { $ne: user._id } },
         { city: user.city },
         { district: user.district },
-        { _id: { $nin: user.likedUsers } },
+        { _id: { $nin: [...user.likedUsers, ...user.matchedUsers] } },
       ],
     };
 

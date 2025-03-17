@@ -7,6 +7,7 @@ import { UserMatchingService } from './services/user-matching.service';
 import { TextAnalysisService } from './services/text-analysis.service';
 import { RecommendationService } from './services/recommendation.service';
 import { tf, initTensorFlow, cleanupTensorFlow } from './config/tensorflow.config';
+import { MLService } from './services/ml.service';
 
 @Injectable()
 export class AIService implements OnModuleInit, OnModuleDestroy {
@@ -18,6 +19,7 @@ export class AIService implements OnModuleInit, OnModuleDestroy {
     private readonly userMatchingService: UserMatchingService,
     private readonly textAnalysisService: TextAnalysisService,
     private readonly recommendationService: RecommendationService,
+    private readonly mlService: MLService,
   ) {}
 
   async onModuleInit() {
@@ -105,29 +107,75 @@ export class AIService implements OnModuleInit, OnModuleDestroy {
     return (frequencyScore * 0.4 + responsiveScore * 0.4 + lengthScore * 0.2) * 100;
   }
 
-  async getTopMatches(userId: string, limit: number = 10): Promise<any[]> {
-    const currentUser = await this.userModel.findById(userId);
-    if (!currentUser) {
-      throw new Error('Không tìm thấy người dùng');
+  async getTopMatches(userId: string, limit: number = 20, useAI: boolean = true): Promise<any[]> {
+    try {
+      console.log(`Getting top matches for user ${userId} with useAI=${useAI}`);
+      
+      const currentUser = await this.userModel.findById(userId);
+      if (!currentUser) {
+        throw new Error('Không tìm thấy người dùng');
+      }
+
+      const potentialMatches = await this.userModel.find({
+        _id: { $ne: userId },
+        gender: currentUser.genderPreference === 'both' ? 
+          { $in: ['male', 'female'] } : 
+          currentUser.genderPreference
+      });
+
+      console.log(`Found ${potentialMatches.length} potential matches`);
+
+      const matchScores = await Promise.all(
+        potentialMatches.map(async (match) => {
+          try {
+            let score;
+            if (useAI) {
+              console.log(`Using AI prediction for match ${match._id}`);
+              score = await this.mlService.predictMatch(userId, match._id.toString());
+            } else {
+              console.log(`Using traditional compatibility calculation for match ${match._id}`);
+              score = await this.calculateUserCompatibility(userId, match._id.toString());
+            }
+            
+            return {
+              user: match,
+              score,
+              matchMethod: useAI ? 'ai' : 'traditional'
+            };
+          } catch (error) {
+            console.error(`Error calculating score for match ${match._id}:`, error);
+            // Fallback về phương pháp tính điểm thông thường nếu dùng AI thất bại
+            const score = await this.calculateUserCompatibility(userId, match._id.toString());
+            return {
+              user: match,
+              score,
+              matchMethod: 'traditional_fallback'
+            };
+          }
+        })
+      );
+
+      const results = matchScores
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit)
+        .map(match => ({
+          ...match.user.toObject(),
+          compatibilityScore: Math.round(match.score * 100),
+          matchMethod: match.matchMethod
+        }));
+
+      console.log(`Returning ${results.length} matches with methods:`, 
+        results.map(r => r.matchMethod).reduce((acc, method) => {
+          acc[method] = (acc[method] || 0) + 1;
+          return acc;
+        }, {})
+      );
+
+      return results;
+
+    } catch (error) {
+      console.error('Lỗi khi lấy danh sách match:', error);
+      throw error;
     }
-
-    const potentialMatches = await this.userModel.find({
-      _id: { $ne: userId },
-      gender: currentUser.genderPreference === 'both' ? { $in: ['male', 'female'] } : currentUser.genderPreference
-    });
-
-    const matchScores = await Promise.all(
-      potentialMatches.map(async (match) => {
-        const score = await this.calculateUserCompatibility(userId, match._id.toString());
-        return {
-          user: match,
-          compatibilityScore: score
-        };
-      })
-    );
-
-    return matchScores
-      .sort((a, b) => b.compatibilityScore - a.compatibilityScore)
-      .slice(0, limit);
   }
 } 

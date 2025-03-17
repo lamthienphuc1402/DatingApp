@@ -7,6 +7,8 @@ import { UserService } from '../user/user.service';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { UpdateAdminDto } from './dto/update-admin.dto';
+import { User } from '../user/schema/user.schema';
+import { MLService } from '../ai/services/ml.service';
 
 @Injectable()
 export class AdminService {
@@ -14,6 +16,8 @@ export class AdminService {
     @InjectModel(Admin.name) private adminModel: Model<AdminDocument>,
     private userService: UserService,
     private jwtService: JwtService,
+    @InjectModel(User.name) private userModel: Model<User>,
+    private readonly mlService: MLService,
   ) {}
 
   async createAdmin(createAdminDto: CreateAdminDto): Promise<Admin> {
@@ -112,5 +116,17 @@ export class AdminService {
     }
 
     return this.adminModel.findByIdAndDelete(id);
+  }
+
+  async getModelStats() {
+    return this.mlService.getModelStats();
+  }
+
+  async getMatchDistribution() {
+    return this.mlService.getMatchDistribution();
+  }
+
+  async trainModel() {
+    return this.mlService.trainModel();
   }
 }

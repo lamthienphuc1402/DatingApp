@@ -83,8 +83,22 @@ export class UserController {
   async findNearbyUsers(
     @Param('userId') userId: string,
     @Query('maxDistance') maxDistance: number,
+    @Query('page') page: number = 1,
+    @Query('pageSize') pageSize: number = 10,
   ) {
-    return this.userService.findNearbyUsers(userId, maxDistance);
+    const users = await this.userService.findNearbyUsers(userId, maxDistance);
+    
+    // Thực hiện phân trang
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const paginatedUsers = users.slice(startIndex, endIndex);
+    
+    return {
+      users: paginatedUsers,
+      totalPages: Math.ceil(users.length / pageSize),
+      totalUsers: users.length,
+      currentPage: page
+    };
   }
 
   @Post('verify/:userId')

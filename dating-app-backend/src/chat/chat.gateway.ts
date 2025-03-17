@@ -5,7 +5,7 @@ import {
   OnGatewayConnection,
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
-import { Server } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import { ChatService } from './chat.service';
 import { SendMessageDto } from './dto/send-message.dto';
 import { UserService } from '../user/user.service';
@@ -14,6 +14,7 @@ import { forwardRef, Inject } from '@nestjs/common';
 @WebSocketGateway({ cors: true })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
+  private userSocketMap: Map<string, string> = new Map();
 
   constructor(
     @Inject(forwardRef(() => UserService))
@@ -22,16 +23,23 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly chatService: ChatService,
   ) {}
 
-  handleConnection(client: any) {
-    const userId = this.getUserIdFromClient(client);
-    this.userService.setUserOnline(userId, true);
-    this.server.emit('userStatus', { userId, status: 'online' });
+  handleConnection(client: Socket) {
+    const userId = client.handshake.query.userId as string;
+    if (userId) {
+      this.userSocketMap.set(userId, client.id);
+      client.join(userId);
+      this.userService.setUserOnline(userId, true);
+      this.server.emit('userStatus', { userId, status: 'online' });
+    }
   }
 
-  handleDisconnect(client: any) {
-    const userId = this.getUserIdFromClient(client);
-    this.userService.setUserOnline(userId, false);
-    this.server.emit('userStatus', { userId, status: 'offline' });
+  handleDisconnect(client: Socket) {
+    const userId = client.handshake.query.userId as string;
+    if (userId) {
+      this.userSocketMap.delete(userId);
+      this.userService.setUserOnline(userId, false);
+      this.server.emit('userStatus', { userId, status: 'offline' });
+    }
   }
 
   async emitNewMessage(senderId: string, receiverId: string, message: any) {
@@ -45,16 +53,98 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('sendMessage')
-  async handleMessage(client: any, payload: SendMessageDto) {
+  async handleMessage(client: Socket, payload: SendMessageDto) {
     try {
       const message = await this.chatService.saveMessage(payload);
-      this.server.to(payload.receiverId).emit('message', message);
-    } catch (error) {
-      let message = 'Unknown error';
-      if (error instanceof Error) {
-        message = error.message;
+      
+      // Gửi tin nhắn cho người nhận
+      const receiverSocketId = this.userSocketMap.get(payload.receiverId);
+      if (receiverSocketId) {
+        this.server.to(receiverSocketId).emit('message', message);
       }
-      client.emit('error', { message });
+      
+      // Gửi tin nhắn về cho người gửi để xác nhận
+      client.emit('message', message);
+      
+      // Emit để cập nhật danh sách matched users
+      this.server.to(payload.senderId).to(payload.receiverId).emit('updateMatchedUsers');
+    } catch (error) {
+      client.emit('error', { 
+        message: error instanceof Error ? error.message : 'Unknown error' 
+      });
+    }
+  }
+
+  @SubscribeMessage('getMessages')
+  async handleGetMessages(
+    client: Socket,
+    payload: { userId1: string; userId2: string },
+  ) {
+    try {
+      const messages = await this.chatService.getMessagesBetweenUsers(
+        payload.userId1,
+        payload.userId2,
+      );
+      client.emit('messages', messages);
+    } catch (error) {
+      client.emit('error', { 
+        message: error instanceof Error ? error.message : 'Unknown error' 
+      });
+    }
+  }
+
+  @SubscribeMessage('addReaction')
+  async handleReaction(
+    client: Socket,
+    payload: { messageId: string; userId: string; emoji: string },
+  ) {
+    try {
+      const updatedMessage = await this.chatService.addReaction(
+        payload.messageId,
+        payload.userId,
+        payload.emoji,
+      );
+      
+      // Gửi cập nhật reaction cho tất cả người dùng trong cuộc trò chuyện
+      const { senderId, receiverId } = updatedMessage;
+      this.server.to(senderId).to(receiverId).emit('messageUpdated', updatedMessage);
+    } catch (error) {
+      client.emit('error', { 
+        message: error instanceof Error ? error.message : 'Unknown error' 
+      });
+    }
+  }
+
+  @SubscribeMessage('markRead')
+  async handleMarkRead(
+    client: Socket,
+    payload: { userId: string; targetUserId: string },
+  ) {
+    try {
+      await this.chatService.markMessagesAsRead(payload.userId, payload.targetUserId);
+      
+      // Thông báo cho người gửi rằng tin nhắn đã được đọc
+      const senderSocketId = this.userSocketMap.get(payload.targetUserId);
+      if (senderSocketId) {
+        this.server.to(senderSocketId).emit('messagesRead', {
+          readBy: payload.userId,
+          messages: await this.chatService.getMessagesBetweenUsers(
+            payload.userId,
+            payload.targetUserId,
+          ),
+        });
+      }
+    } catch (error) {
+      client.emit('error', { 
+        message: error instanceof Error ? error.message : 'Unknown error' 
+      });
+    }
+  }
+
+  sendMessageToUser(userId: string, event: string, data: any) {
+    const socketId = this.userSocketMap.get(userId);
+    if (socketId) {
+      this.server.to(socketId).emit(event, data);
     }
   }
 
@@ -127,29 +217,5 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.server.off('matchStatus', () => {});
       return;
     } catch (error) {}
-  }
-
-  @SubscribeMessage('getMessages')
-  async handleGetMessages(
-    client: any,
-    payload: { userId1: string; userId2: string },
-  ) {
-    try {
-      const messages = await this.chatService.getMessagesBetweenUsers(
-        payload.userId1,
-        payload.userId2,
-      );
-      client.emit('messages', messages);
-    } catch (error) {
-      let message = 'Unknown error';
-      if (error instanceof Error) {
-        message = error.message;
-      }
-      client.emit('error', { message });
-    }
-  }
-
-  private getUserIdFromClient(client: any): string {
-    return client.handshake.query.userId;
   }
 }
