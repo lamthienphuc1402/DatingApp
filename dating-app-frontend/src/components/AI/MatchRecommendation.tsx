@@ -117,12 +117,30 @@ const MatchRecommendation: React.FC<MatchRecommendationProps> = ({ userId, onSel
 
   const handleLike = async (targetUserId: string) => {
     try {
+      console.log('Thông tin like:', {
+        userId: userId,
+        targetUserId: targetUserId
+      });
+
+      // Gọi API like user
       await aiService.likeUser(userId, targetUserId);
-      // Socket emit like event
-      socket.emit('sendLike', { toUserId: targetUserId });
+
+      // Emit socket event
+      const socketPayload = {
+        currentUserId: userId,
+        targetUserId: targetUserId,
+        approveStatus: 'pending'
+      };
+      console.log('Socket payload:', socketPayload);
+      socket.emit('sendLike', socketPayload);
+
       toast.success('Đã thích người này!');
     } catch (error) {
-      console.error('Lỗi khi thích người dùng:', error);
+      console.error('Chi tiết lỗi khi thích người dùng:', error);
+      if (error && typeof error === 'object' && 'response' in error) {
+        console.error('Response error:', (error as any).response.data);
+        console.error('Status code:', (error as any).response.status);
+      }
       toast.error('Không thể thích người này. Vui lòng thử lại sau.');
     }
   };

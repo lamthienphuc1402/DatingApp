@@ -43,13 +43,17 @@ export const aiService = {
   },
 
   // Thích một người dùng và cập nhật dữ liệu training
-  likeUser: async (userId: string, targetUserId: string, interactionData?: any) => {
+  likeUser: async (userId: string, targetUserId: string) => {
+    console.log('Gửi request like với payload:', {
+      userId,
+      targetUserId
+    });
+    
     const response = await axios.post(
       `${import.meta.env.VITE_LOCAL_API_URL}/users/like`,
       {
         userId,
-        targetUserId,
-        interactionData, // Dữ liệu tương tác để train model
+        targetUserId
       },
       {
         headers: {
@@ -57,6 +61,7 @@ export const aiService = {
         },
       }
     );
+    console.log('Response từ API like:', response.data);
     return response.data;
   },
 

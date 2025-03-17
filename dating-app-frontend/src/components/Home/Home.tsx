@@ -52,7 +52,7 @@ const Home = ({
   const [currentMatchId, setCurrentMatchId] = useState("");
   const [currentFromId, setCurrentFromId] = useState("");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const { socket, setCurrentSocket }: any = useContext(SocketContext);
+  const { socket, connect, disconnect } = useContext(SocketContext);
   const [showSettings, setShowSettings] = useState(false);
   const [hasSwipedAllUsers, setHasSwipedAllUsers] = useState(false);
   const [resetSwipe, setResetSwipe] = useState(false);
@@ -100,17 +100,15 @@ const Home = ({
   useEffect(() => {
     if (!socket) {
       const user = JSON.parse(localStorage.getItem("user") || "");
-      console.log(user._id);
-      const refreshSocket = io(
-        `${import.meta.env.VITE_LOCAL_API_URL}?userId=${user._id}`
-      );
-      setCurrentSocket(refreshSocket);
-      setRefresh(true);
+      if (user._id) {
+        connect(user._id);
+        setRefresh(true);
+      }
       return;
     } else {
       setRefresh(false);
     }
-  }, [socket]);
+  }, [socket, connect]);
 
   useEffect(() => {
     if (!socket) return;
@@ -257,6 +255,11 @@ const Home = ({
       const userData = JSON.parse(localStorage.getItem("user") || "");
       const userId = userData._id;
       
+      if (!socket) {
+        console.error("Socket không tồn tại");
+        return;
+      }
+      
       // Kiểm tra nếu đã quẹt hết người dùng
       if (currentIndex >= users.length - 1 && currentPage >= totalPages) {
         setHasSwipedAllUsers(true);
@@ -342,42 +345,6 @@ const Home = ({
   const handleSearchFarther = () => {
     // Chỉ mở setting modal
     setShowSettings(true);
-  };
-
-  // Xử lý thích/bỏ qua từ AI recommendations
-  const handleLikeFromAI = async (targetUserId: string) => {
-    try {
-      const userData = JSON.parse(localStorage.getItem("user") || "");
-      const userId = userData._id;
-
-      await axios.post(
-        `${import.meta.env.VITE_LOCAL_API_URL}/users/like`,
-        {
-          userId,
-          targetUserId,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-      
-      socket.emit("sendLike", {
-        currentUserId: userId,
-        targetUserId,
-        approveStatus: "pending",
-      });
-      
-      toast.success("Đã thích người dùng này!");
-    } catch (error) {
-      console.error("Error liking user:", error);
-      toast.error("Có lỗi xảy ra khi thích người dùng");
-    }
-  };
-
-  const handleDislikeFromAI = (targetUserId: string) => {
-    toast.info("Đã bỏ qua người dùng này");
   };
 
   const renderUserDetails = () => {

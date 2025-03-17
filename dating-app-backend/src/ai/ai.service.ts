@@ -116,14 +116,25 @@ export class AIService implements OnModuleInit, OnModuleDestroy {
         throw new Error('Không tìm thấy người dùng');
       }
 
+      // Lấy danh sách ID của những người đã thích và đã match
+      const likedUserIds = currentUser.likedUsers?.map(id => id.toString()) || [];
+      const matchedUserIds = currentUser.matchedUsers?.map(id => id.toString()) || [];
+      
+      // Tạo mảng các ID cần loại bỏ
+      const excludeUserIds = [...likedUserIds, ...matchedUserIds];
+
+      // Tìm kiếm người dùng phù hợp, loại bỏ những người đã thích và đã match
       const potentialMatches = await this.userModel.find({
-        _id: { $ne: userId },
+        _id: { 
+          $ne: userId,
+          $nin: excludeUserIds // Loại bỏ những người đã thích và đã match
+        },
         gender: currentUser.genderPreference === 'both' ? 
           { $in: ['male', 'female'] } : 
           currentUser.genderPreference
       });
 
-      console.log(`Found ${potentialMatches.length} potential matches`);
+      console.log(`Found ${potentialMatches.length} potential matches after filtering`);
 
       const matchScores = await Promise.all(
         potentialMatches.map(async (match) => {

@@ -363,40 +363,48 @@ export class UserService {
   }
 
   async likeUser(userId: string, targetUserId: string): Promise<void> {
-    const user = await this.userModel.findById(userId);
-    if (!user) {
-      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
-    }
+    try {
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      }
 
-    const targetObjectId = new Types.ObjectId(targetUserId);
-    if (!user.likedUsers.some(id => id.equals(targetObjectId))) {
-      user.likedUsers.push(targetObjectId);
-      await user.save();
-    }
-
-    // Cập nhật danh sách likedBy cho targetUser
-    const targetUser = await this.userModel.findById(targetUserId);
-    if (!targetUser) {
-      throw new HttpException('Target user not found', HttpStatus.NOT_FOUND);
-    }
-
-    const userObjectId = new Types.ObjectId(userId);
-    if (!targetUser.likedBy.some(id => id.equals(userObjectId))) {
-      targetUser.likedBy.push(userObjectId);
-      await targetUser.save();
-    }
-
-    // Kiểm tra xem người dùng đã thích nhau chưa
-    if (targetUser.likedUsers.some(id => id.toString() === userId)) {
-      // Nếu cả hai người dùng đã thích nhau, thêm vào danh sách matchedUsers
-      if (!user.matchedUsers.some(id => id.equals(targetObjectId))) {
-        user.matchedUsers.push(targetObjectId);
+      const targetObjectId = new Types.ObjectId(targetUserId);
+      if (!user.likedUsers.some(id => id.toString() === targetUserId)) {
+        user.likedUsers.push(targetObjectId);
         await user.save();
       }
-      if (!targetUser.matchedUsers.some(id => id.equals(userObjectId))) {
-        targetUser.matchedUsers.push(userObjectId);
+
+      // Cập nhật danh sách likedBy cho targetUser
+      const targetUser = await this.userModel.findById(targetUserId);
+      if (!targetUser) {
+        throw new HttpException('Target user not found', HttpStatus.NOT_FOUND);
+      }
+
+      const userObjectId = new Types.ObjectId(userId);
+      if (!targetUser.likedBy.some(id => id.toString() === userId)) {
+        targetUser.likedBy.push(userObjectId);
         await targetUser.save();
       }
+
+      // Kiểm tra xem người dùng đã thích nhau chưa
+      if (targetUser.likedUsers.some(id => id.toString() === userId)) {
+        // Nếu cả hai người dùng đã thích nhau, thêm vào danh sách matchedUsers
+        if (!user.matchedUsers.some(id => id.toString() === targetUserId)) {
+          user.matchedUsers.push(targetObjectId);
+          await user.save();
+        }
+        if (!targetUser.matchedUsers.some(id => id.toString() === userId)) {
+          targetUser.matchedUsers.push(userObjectId);
+          await targetUser.save();
+        }
+      }
+    } catch (error) {
+      console.error('Lỗi trong quá trình xử lý like:', error);
+      throw new HttpException(
+        'Có lỗi xảy ra khi xử lý yêu cầu like',
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
     }
   }
 
