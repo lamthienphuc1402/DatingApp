@@ -1,3 +1,4 @@
+// Import các thư viện cần thiết
 import { useContext, useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import UserLists from "../UserLists";
@@ -15,6 +16,7 @@ import { toast } from "react-toastify";
 import { User } from '../../types/user';
 import Navigation from '../Navigation/Navigation';
 
+// Component hiển thị thông tin chi tiết
 const InfoItem = ({
   label,
   value,
@@ -30,46 +32,50 @@ const InfoItem = ({
   </div>
 );
 
+// Định nghĩa kiểu dữ liệu cho props của component Home
 export type HomeType = {
-  setIsLoggedIn: React.Dispatch<React.SetStateAction<boolean>>;
-  isLoggedIn: boolean;
-  showUserLists: boolean;
-  setShowUserLists: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsLoggedIn: React.Dispatch<React.SetStateAction<boolean>>; // Hàm cập nhật trạng thái đăng nhập
+  isLoggedIn: boolean; // Trạng thái đăng nhập
+  showUserLists: boolean; // Trạng thái hiển thị danh sách người dùng
+  setShowUserLists: React.Dispatch<React.SetStateAction<boolean>>; // Hàm cập nhật trạng thái hiển thị danh sách
 };
 
+// Component Home chính
 const Home = ({
   setIsLoggedIn,
   isLoggedIn,
   showUserLists,
   setShowUserLists,
 }: HomeType) => {
-  const [users, setUsers] = useState<User[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [error, setError] = useState("");
-  const [refresh, setRefresh] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [selectedProfile, setSelectedProfile] = useState<User | null>(null);
-  const [currentMatchId, setCurrentMatchId] = useState("");
-  const [currentFromId, setCurrentFromId] = useState("");
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const { socket, connect, disconnect } = useContext(SocketContext);
-  const [showSettings, setShowSettings] = useState(false);
-  const [hasSwipedAllUsers, setHasSwipedAllUsers] = useState(false);
-  const [resetSwipe, setResetSwipe] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [showNotice, setShowNotice] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  // Khởi tạo các state
+  const [users, setUsers] = useState<User[]>([]); // Danh sách người dùng cho chế độ swipe
+  const [currentIndex, setCurrentIndex] = useState(0); // Index người dùng hiện tại
+  const [error, setError] = useState(""); // Thông báo lỗi
+  const [refresh, setRefresh] = useState(false); // Trạng thái refresh
+  const [selectedUser, setSelectedUser] = useState<User | null>(null); // Người dùng được chọn
+  const [selectedProfile, setSelectedProfile] = useState<User | null>(null); // Profile được chọn để xem chi tiết
+  const [currentMatchId, setCurrentMatchId] = useState(""); // ID của match hiện tại
+  const [currentFromId, setCurrentFromId] = useState(""); // ID người gửi match
+  const [selectedImage, setSelectedImage] = useState<string | null>(null); // Ảnh được chọn để xem
+  const { socket, connect, disconnect } = useContext(SocketContext); // Context quản lý kết nối socket
+  const [showSettings, setShowSettings] = useState(false); // Trạng thái hiển thị settings
+  const [hasSwipedAllUsers, setHasSwipedAllUsers] = useState(false); // Trạng thái đã swipe hết người dùng
+  const [resetSwipe, setResetSwipe] = useState(false); // Trạng thái reset swipe
+  const [loading, setLoading] = useState(false); // Trạng thái loading
+  const [showNotice, setShowNotice] = useState(false); // Trạng thái hiển thị thông báo
+  const [unreadCount, setUnreadCount] = useState(0); // Số tin nhắn chưa đọc
 
-  // Pagination states
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [pageSize, setPageSize] = useState(4);
-  const [viewMode, setViewMode] = useState<"swipe" | "list" | "ai">("swipe");
+  // State cho phân trang
+  const [currentPage, setCurrentPage] = useState(1); // Trang hiện tại
+  const [totalPages, setTotalPages] = useState(1); // Tổng số trang
+  const [pageSize, setPageSize] = useState(4); // Số item trên mỗi trang
+  const [viewMode, setViewMode] = useState<"swipe" | "list" | "ai">("swipe"); // Chế độ xem
 
-  // Tách riêng state cho swipe và list view
-  const [allUsers, setAllUsers] = useState<User[]>([]);
-  const [listUsers, setListUsers] = useState<User[]>([]);
+  // State cho danh sách người dùng
+  const [allUsers, setAllUsers] = useState<User[]>([]); // Tất cả người dùng
+  const [listUsers, setListUsers] = useState<User[]>([]); // Danh sách người dùng cho chế độ list
 
+  // Effect kiểm tra đăng nhập và lấy danh sách người dùng
   useEffect(() => {
     const token = localStorage.getItem("token");
     const userString = localStorage.getItem("user");
@@ -80,7 +86,6 @@ const Home = ({
         fetchNearbyUsers(user._id);
       } catch (error) {
         console.error("Lỗi khi parse thông tin người dùng:", error);
-        // Xử lý lỗi, ví dụ: đăng xuất người dùng
         handleLogout();
       }
     } else {
@@ -88,15 +93,14 @@ const Home = ({
     }
   }, []);
 
+  // Hàm xử lý đăng xuất
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     setIsLoggedIn(false);
-    // Chuyển hướng người dùng về trang đăng nhập nếu cần
-    // navigate("/login");
   };
 
-  //Handle if user refresh
+  // Effect xử lý refresh và kết nối socket
   useEffect(() => {
     if (!socket) {
       const user = JSON.parse(localStorage.getItem("user") || "");
@@ -110,10 +114,12 @@ const Home = ({
     }
   }, [socket, connect]);
 
+  // Effect xử lý các sự kiện socket
   useEffect(() => {
     if (!socket) return;
     const user = JSON.parse(localStorage.getItem("user") || "");
 
+    // Lắng nghe sự kiện match được chấp nhận
     socket.on("matchApprove", (data: any) => {
       const matchData = JSON.parse(data);
       setCurrentMatchId(matchData.targetUserId);
@@ -125,6 +131,7 @@ const Home = ({
       }
     });
 
+    // Lắng nghe sự kiện trạng thái match
     socket.on("matchStatus", (data: any) => {
       const approveModal: any = document.querySelector("#approveBox");
       if (approveModal) approveModal.close();
@@ -138,6 +145,8 @@ const Home = ({
         return;
       }
     });
+
+    // Cleanup khi component unmount
     return () => {
       socket.off("matchApprove");
       socket.off("sendLike");
@@ -145,11 +154,11 @@ const Home = ({
     };
   }, [socket]);
 
+  // Hàm lấy danh sách người dùng gần đó
   const fetchNearbyUsers = async (userId: string, page = 1) => {
     setError("");
     setLoading(true);
 
-    // Kiểm tra userId
     if (!userId) {
       setError("ID người dùng không hợp lệ");
       setLoading(false);
@@ -157,77 +166,50 @@ const Home = ({
     }
 
     try {
-      // Lấy thông tin tìm kiếm từ localStorage
+      // Lấy preferences từ localStorage
       const savedPreferences = localStorage.getItem("searchPreferences");
       const preferences = savedPreferences
         ? JSON.parse(savedPreferences)
         : { searchDistance: 1000 };
 
-      console.log('Fetching nearby users with preferences:', preferences);
-
-      // Gọi API với tham số phân trang - sử dụng endpoint đúng
-      const response = await fetch(
-        `${import.meta.env.VITE_LOCAL_API_URL}/users/nearby/${userId}?maxDistance=${
-          preferences.searchDistance || 1000
-        }`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Lỗi HTTP: ${response.status}`);
+      if (!socket) {
+        throw new Error("Socket không tồn tại");
       }
 
-      const data = await response.json();
-      console.log("API Response:", data);
-
-      // Kiểm tra dữ liệu trả về
-      if (!data) {
-        throw new Error("Dữ liệu không hợp lệ");
-      }
-
-      // Xử lý dữ liệu nhận được
-      let fetchedUsers: User[] = [];
-      
-      if (Array.isArray(data)) {
-        fetchedUsers = data;
-      } else if (data.users && Array.isArray(data.users)) {
-        fetchedUsers = data.users;
-      } else {
-        fetchedUsers = [data]; // Trường hợp trả về một user
-      }
-      
-      console.log('Processed users:', {
-        total: fetchedUsers.length,
-        userIds: fetchedUsers.map(u => u._id)
+      // Gửi sự kiện lấy danh sách người dùng gần
+      socket.emit("getNearbyUsers", {
+        userId,
+        maxDistance: preferences.searchDistance || 1000
       });
-      
-      // Lưu trữ tất cả người dùng
-      setAllUsers(fetchedUsers);
-      
-      // Cập nhật users cho swipe view
-      setUsers(fetchedUsers);
-      
-      // Cập nhật users cho list view với phân trang
-      const startIndex = (page - 1) * pageSize;
-      const endIndex = Math.min(startIndex + pageSize, fetchedUsers.length);
-      setListUsers(fetchedUsers.slice(startIndex, endIndex));
-      
-      // Tính toán tổng số trang
-      const calculatedTotalPages = Math.ceil(fetchedUsers.length / pageSize) || 1;
-      setTotalPages(calculatedTotalPages);
-      
-      // Cập nhật trạng thái đã swipe hết người dùng
-      setHasSwipedAllUsers(fetchedUsers.length === 0);
-      
-      // Reset index về 0 khi load dữ liệu mới
-      setCurrentIndex(0);
-      
-      // Cập nhật trang hiện tại
-      setCurrentPage(page);
+
+      // Lắng nghe kết quả
+      socket.once("nearbyUsers", (data: User[]) => {
+        if (!data) {
+          throw new Error("Dữ liệu không hợp lệ");
+        }
+
+        // Cập nhật state
+        setAllUsers(data);
+        setUsers(data);
+        
+        // Cập nhật danh sách cho chế độ list view
+        const startIndex = (page - 1) * pageSize;
+        const endIndex = Math.min(startIndex + pageSize, data.length);
+        setListUsers(data.slice(startIndex, endIndex));
+        
+        // Cập nhật thông tin phân trang
+        const calculatedTotalPages = Math.ceil(data.length / pageSize) || 1;
+        setTotalPages(calculatedTotalPages);
+        setHasSwipedAllUsers(data.length === 0);
+        setCurrentIndex(0);
+        setCurrentPage(page);
+      });
+
+      // Lắng nghe lỗi
+      socket.once("error", (error: any) => {
+        throw new Error(error.message || "Lỗi không xác định");
+      });
+
     } catch (error: any) {
       console.error("Lỗi khi lấy danh sách người dùng gần:", error);
       setError(`Lỗi khi lấy danh sách người dùng gần: ${error.message || 'Không xác định'}`);
@@ -241,7 +223,7 @@ const Home = ({
     }
   };
 
-  // Load more users when reaching end
+  // Effect load thêm người dùng khi scroll đến cuối
   useEffect(() => {
     if (users && currentIndex > users.length - 3 && currentPage < totalPages) {
       const userData = JSON.parse(localStorage.getItem("user") || "{}");
@@ -250,6 +232,7 @@ const Home = ({
     }
   }, [currentIndex, users?.length, totalPages]);
 
+  // Hàm xử lý khi thích người dùng
   const handleLike = async (targetUserId: string) => {
     try {
       const userData = JSON.parse(localStorage.getItem("user") || "");
@@ -260,13 +243,14 @@ const Home = ({
         return;
       }
       
-      // Kiểm tra nếu đã quẹt hết người dùng
+      // Cập nhật trạng thái swipe
       if (currentIndex >= users.length - 1 && currentPage >= totalPages) {
         setHasSwipedAllUsers(true);
       } else {
         setCurrentIndex((prevIndex) => prevIndex + 1);
       }
       
+      // Gửi sự kiện thích qua socket
       socket.emit("sendLike", {
         currentUserId: userId,
         targetUserId,
@@ -277,8 +261,8 @@ const Home = ({
     }
   };
 
+  // Hàm xử lý khi không thích người dùng
   const handleDislike = () => {
-    // Đảm bảo currentIndex không vượt quá số lượng users
     if (currentIndex < users.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
@@ -287,6 +271,7 @@ const Home = ({
     toast.info("Đã bỏ qua người dùng này");
   };
 
+  // Hàm xử lý khi chọn người dùng
   const handleSelectUser = (userId: string) => {
     const user = users.find((user) => user._id === userId);
     if (user) {
@@ -296,6 +281,7 @@ const Home = ({
     }
   };
 
+  // Effect xử lý class cho body khi hiển thị danh sách người dùng
   useEffect(() => {
     if (showUserLists) {
       document.body.classList.add("user-lists-open");
@@ -308,6 +294,7 @@ const Home = ({
     };
   }, [showUserLists]);
 
+  // State và effect xử lý modal cập nhật vị trí
   const [showLocationModal, setShowLocationModal] = useState(false);
 
   useEffect(() => {
@@ -327,12 +314,13 @@ const Home = ({
     checkUserLocation();
   }, []);
 
+  // Hàm xử lý khi thay đổi settings
   const handleSettingsChanged = useCallback(() => {
     const userData = JSON.parse(localStorage.getItem("user") || "{}");
     fetchNearbyUsers(userData._id);
   }, []);
 
-  // Thêm hàm để reset quẹt
+  // Hàm reset swipe
   const handleResetSwipe = () => {
     setCurrentIndex(0);
     setCurrentPage(1);
@@ -341,12 +329,12 @@ const Home = ({
     fetchNearbyUsers(userData._id, 1);
   };
   
-  // Thêm hàm để tìm xa hơn
+  // Hàm xử lý tìm kiếm xa hơn
   const handleSearchFarther = () => {
-    // Chỉ mở setting modal
     setShowSettings(true);
   };
 
+  // Hàm render chi tiết người dùng
   const renderUserDetails = () => {
     if (!selectedProfile) return null;
     
@@ -482,26 +470,29 @@ const Home = ({
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     
-    // Cập nhật listUsers dựa trên trang hiện tại
+    // Cập nhật danh sách người dùng cho trang hiện tại
     const startIndex = (page - 1) * pageSize;
     const endIndex = Math.min(startIndex + pageSize, allUsers.length);
     setListUsers(allUsers.slice(startIndex, endIndex));
   };
 
+  // Render component
   return (
     <div className="main-container">
+      {/* Component thông báo match */}
       <ApproveNotice
         socket={socket}
         fromUserName={currentFromId}
         toUserName={currentMatchId}
       />
+      {/* Modal xác nhận match */}
       <ApproveModal
         socket={socket}
         fromUser={currentFromId}
         targetUser={currentMatchId}
       />
       <div className="min-h-screen pt-16 bg-gradient-to-br from-purple-400 via-pink-400 to-pink-600 flex flex-col md:flex-row">
-        {/* Navigation component */}
+        {/* Component điều hướng */}
         <Navigation 
           showUserLists={showUserLists}
           setShowUserLists={setShowUserLists}
@@ -510,9 +501,9 @@ const Home = ({
           unreadCount={unreadCount}
         />
 
-        {/* Main content */}
+        {/* Nội dung chính */}
         <div className="flex-1 p-4 md:px-6 lg:px-8 overflow-y-auto">
-          {/* Header section */}
+          {/* Phần header */}
           <div className="bg-white/95 backdrop-blur-lg rounded-2xl shadow-lg mb-6">
             <div className="flex items-center justify-between p-6">
               <div className="flex-1">
@@ -538,7 +529,7 @@ const Home = ({
             </div>
           </div>
 
-          {/* View mode selector */}
+          {/* Chọn chế độ xem */}
           <div className="flex justify-center mb-6">
             <div className="inline-flex bg-white/95 backdrop-blur-lg rounded-xl shadow-lg p-1">
               <button
@@ -566,7 +557,7 @@ const Home = ({
             </div>
           </div>
 
-          {/* Content container */}
+          {/* Container nội dung */}
           <div className="transition-all duration-300 ease-in-out">
             {viewMode === "swipe" && (
               <div className="flex flex-col lg:flex-row gap-6 justify-center items-start max-w-[1600px] mx-auto">
@@ -665,11 +656,10 @@ const Home = ({
                           style={{ width: `${users.length > 0 ? ((currentIndex + 1) / users.length) * 100 : 0}%` }}
                         ></div>
                       </div>
-                      
                     </div>
                   </div>
                   
-                  {/* Người dùng hiện tại */}
+                  {/* Thông tin người dùng hiện tại */}
                   {users[currentIndex] && (
                     <div className="bg-white/95 backdrop-blur-lg rounded-2xl shadow-lg overflow-hidden">
                       <div className="p-6">
@@ -726,6 +716,7 @@ const Home = ({
               </div>
             )}
 
+            {/* Chế độ xem danh sách */}
             {viewMode === "list" && (
               <ListView
                 currentUsers={listUsers}
@@ -739,11 +730,10 @@ const Home = ({
         </div>
       </div>
 
-      {/* Settings Modal */}
+      {/* Modal cài đặt */}
       {showSettings && (
         <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative">
-            {/* Thêm nút đóng ở góc trên bên phải */}
             <button
               onClick={() => setShowSettings(false)}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-full transition duration-300 z-10"
@@ -759,9 +749,10 @@ const Home = ({
         </div>
       )}
 
+      {/* Modal chi tiết người dùng */}
       {renderUserDetails()}
 
-      {/* Image Viewer Modal */}
+      {/* Modal xem ảnh */}
       {selectedImage && (
         <div className="fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center p-4">
           <div className="relative w-full max-w-4xl">
@@ -780,14 +771,13 @@ const Home = ({
         </div>
       )}
 
-      {/* Location Update Modal */}
+      {/* Modal cập nhật vị trí */}
       {showLocationModal && (
         <LocationUpdateModal
           isOpen={showLocationModal}
           onClose={() => setShowLocationModal(false)}
           onLocationUpdated={() => {
             setShowLocationModal(false);
-            // Refresh user list after location update
             const userData = JSON.parse(localStorage.getItem("user") || "{}");
             fetchNearbyUsers(userData._id);
           }}

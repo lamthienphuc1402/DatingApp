@@ -1,31 +1,34 @@
+// Import các thư viện cần thiết
 import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
-import { format, parseISO } from "date-fns";
-import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
-import { useSocket } from '../SocketContext';
+import { format, parseISO } from "date-fns"; // Thư viện xử lý thời gian
+import EmojiPicker, { EmojiClickData } from "emoji-picker-react"; // Component chọn emoji
+import { useSocket } from '../SocketContext'; // Hook quản lý kết nối socket
 
-// Định nghĩa kiểu cho tin nhắn
+// Định nghĩa kiểu dữ liệu cho tin nhắn
 interface Message {
-  _id: string;
-  senderId: string;
-  receiverId: string;
-  content: string;
-  isRead: boolean;
-  createdAt: string;
-  reactions?: {
-    [key: string]: string[];
+  _id: string; // ID duy nhất của tin nhắn
+  senderId: string; // ID người gửi
+  receiverId: string; // ID người nhận
+  content: string; // Nội dung tin nhắn
+  isRead: boolean; // Trạng thái đã đọc
+  createdAt: string; // Thời gian tạo
+  reactions?: { // Các phản ứng emoji
+    [key: string]: string[]; // Key là emoji, value là mảng ID người dùng đã reaction
   };
 }
 
+// Định nghĩa props cho component Chat
 interface ChatProps {
-  userId: string;
-  targetUserId: string;
-  targetUserName: string;
-  targetUserProfilePicture: string[];
-  targetUserIsOnline: boolean;
-  onBack: () => void;
+  userId: string; // ID người dùng hiện tại
+  targetUserId: string; // ID người dùng đang chat
+  targetUserName: string; // Tên người dùng đang chat
+  targetUserProfilePicture: string[]; // Ảnh đại diện người dùng
+  targetUserIsOnline: boolean; // Trạng thái online của người dùng
+  onBack: () => void; // Hàm xử lý khi quay lại
 }
 
+// Component Chat chính
 const Chat: React.FC<ChatProps> = ({
   userId,
   targetUserId,
@@ -34,22 +37,24 @@ const Chat: React.FC<ChatProps> = ({
   targetUserIsOnline,
   onBack,
 }) => {
-  const { socket } = useSocket();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState("");
-  const [error, setError] = useState("");
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [isAtBottom, setIsAtBottom] = useState(true);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [showReactionPicker, setShowReactionPicker] = useState<{
+  // Khởi tạo các state và hooks
+  const { socket } = useSocket(); // Hook quản lý kết nối socket
+  const [messages, setMessages] = useState<Message[]>([]); // State lưu danh sách tin nhắn
+  const [newMessage, setNewMessage] = useState(""); // State lưu tin nhắn mới
+  const [error, setError] = useState(""); // State lưu lỗi
+  const messagesEndRef = useRef<HTMLDivElement>(null); // Ref cho phần cuối danh sách tin nhắn
+  const [isAtBottom, setIsAtBottom] = useState(true); // State kiểm tra vị trí scroll
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false); // State hiển thị bảng chọn emoji
+  const [showReactionPicker, setShowReactionPicker] = useState<{ // State hiển thị bảng chọn reaction
     messageId: string;
     show: boolean;
   }>({ messageId: "", show: false });
 
+  // Effect xử lý kết nối socket và lắng nghe tin nhắn
   useEffect(() => {
     if (!socket) return;
 
-    // Lấy tin nhắn ban đầu
+    // Gửi yêu cầu lấy tin nhắn ban đầu
     socket.emit('getMessages', { userId1: userId, userId2: targetUserId });
 
     // Lắng nghe tin nhắn mới
@@ -69,6 +74,7 @@ const Chat: React.FC<ChatProps> = ({
       setError(error.message);
     });
 
+    // Cleanup khi component unmount
     return () => {
       socket.off('message');
       socket.off('messages');
@@ -76,12 +82,14 @@ const Chat: React.FC<ChatProps> = ({
     };
   }, [socket, userId, targetUserId]);
 
+  // Effect tự động scroll xuống khi có tin nhắn mới
   useEffect(() => {
     if (isAtBottom) {
       scrollToBottom();
     }
   }, [messages]);
 
+  // Effect xử lý click ngoài bảng chọn emoji
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
@@ -98,6 +106,7 @@ const Chat: React.FC<ChatProps> = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Effect xử lý click ngoài bảng chọn reaction
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
@@ -113,23 +122,27 @@ const Chat: React.FC<ChatProps> = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Hàm scroll xuống cuối danh sách tin nhắn
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Hàm xử lý gửi tin nhắn
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !socket) return;
 
+    // Gửi tin nhắn qua socket
     socket.emit('sendMessage', {
       senderId: userId,
       receiverId: targetUserId,
       content: newMessage,
     });
     
-    setNewMessage("");
+    setNewMessage(""); // Reset input
   };
 
+  // Hàm format thời gian
   const formatDate = (date: string) => {
     if (!date) return "";
     try {
@@ -140,18 +153,22 @@ const Chat: React.FC<ChatProps> = ({
     }
   };
 
+  // Hàm xử lý scroll
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, clientHeight, scrollHeight } = e.currentTarget;
     setIsAtBottom(scrollHeight - scrollTop === clientHeight);
   };
 
+  // Hàm xử lý khi chọn emoji
   const onEmojiClick = (emojiData: EmojiClickData) => {
     setNewMessage((prev) => prev + emojiData.emoji);
   };
 
+  // Hàm xử lý thêm reaction
   const handleReaction = async (messageId: string, emoji: string) => {
     if (!socket) return;
 
+    // Gửi reaction qua socket
     socket.emit('addReaction', {
       messageId,
       userId,
@@ -161,16 +178,20 @@ const Chat: React.FC<ChatProps> = ({
     setShowReactionPicker({ messageId: "", show: false });
   };
 
+  // Render component
   return (
     <div className="flex flex-col h-full">
+      {/* Header của chat */}
       <div className="flex items-center justify-between p-4 border-b">
         <div className="flex items-center">
+          {/* Nút quay lại */}
           <button
             onClick={onBack}
             className="mr-4 text-gray-600 hover:text-gray-800"
           >
             <i className="fas fa-arrow-left"></i>
           </button>
+          {/* Thông tin người dùng đang chat */}
           <div className="flex items-center">
             <div className="relative">
               <img
@@ -178,6 +199,7 @@ const Chat: React.FC<ChatProps> = ({
                 alt={targetUserName}
                 className="w-10 h-10 rounded-full object-cover"
               />
+              {/* Chỉ báo trạng thái online */}
               <span
                 className={`absolute bottom-0 right-0 w-3 h-3 rounded-full ${
                   targetUserIsOnline ? "bg-green-500" : "bg-gray-400"
@@ -194,9 +216,10 @@ const Chat: React.FC<ChatProps> = ({
         </div>
       </div>
 
+      {/* Phần nội dung chat */}
       <div className="flex-1 flex">
         <div className="flex-1 flex flex-col w-full">
-          {/* Existing chat content */}
+          {/* Danh sách tin nhắn */}
           <div className="flex-1 p-4 overflow-y-auto">
             {error && <p className="text-red-500 text-center">{error}</p>}
             {messages.map((message, index) => (
@@ -207,6 +230,7 @@ const Chat: React.FC<ChatProps> = ({
                 }`}
               >
                 <div className="relative group max-w-[70%]">
+                  {/* Bong bóng tin nhắn */}
                   <div
                     className={`rounded-2xl px-4 py-2 ${
                       message.senderId === userId
@@ -220,7 +244,7 @@ const Chat: React.FC<ChatProps> = ({
                     </span>
                   </div>
 
-                  {/* Chỉ hiển thị nút reaction cho tin nhắn của đối phương */}
+                  {/* Nút reaction cho tin nhắn của đối phương */}
                   {message.senderId !== userId && (
                     <button
                       onClick={() =>
@@ -235,7 +259,7 @@ const Chat: React.FC<ChatProps> = ({
                     </button>
                   )}
 
-                  {/* Hiển thị reactions */}
+                  {/* Hiển thị các reaction */}
                   {message.reactions &&
                     Object.entries(message.reactions).length > 0 && (
                       <div className="reactions-display absolute -bottom-6 left-0 bg-white rounded-full shadow-lg px-2 py-1">
@@ -251,7 +275,7 @@ const Chat: React.FC<ChatProps> = ({
                       </div>
                     )}
 
-                  {/* Điều chỉnh vị trí Emoji Picker */}
+                  {/* Bảng chọn reaction */}
                   {showReactionPicker.messageId === message._id &&
                     showReactionPicker.show && (
                       <div
@@ -281,6 +305,8 @@ const Chat: React.FC<ChatProps> = ({
             ))}
             <div ref={messagesEndRef} />
           </div>
+
+          {/* Form nhập tin nhắn */}
           <div className="p-4 border-t">
             <form onSubmit={handleSendMessage} className="flex gap-2">
               <div className="relative flex-1">
@@ -292,6 +318,7 @@ const Chat: React.FC<ChatProps> = ({
                   className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
                 />
                 <div>
+                  {/* Nút chọn emoji */}
                   <button
                     type="button"
                     onClick={() => setShowEmojiPicker(!showEmojiPicker)}
@@ -299,6 +326,7 @@ const Chat: React.FC<ChatProps> = ({
                   >
                     <span className="emoji">😊</span>
                   </button>
+                  {/* Bảng chọn emoji */}
                   {showEmojiPicker && (
                     <div className="absolute bottom-[calc(100%+400px)] right-[200px] z-50">
                       <div className="emoji-picker-container animate-slide-up">
@@ -316,6 +344,7 @@ const Chat: React.FC<ChatProps> = ({
                   )}
                 </div>
               </div>
+              {/* Nút gửi tin nhắn */}
               <button
                 type="submit"
                 className="px-6 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full hover:opacity-90 transition duration-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"

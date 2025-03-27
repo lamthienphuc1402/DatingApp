@@ -1,43 +1,48 @@
-import React, { useState, useEffect, useContext, useCallback } from "react";
-import axios from "axios";
-import { motion } from "framer-motion";
-import { SocketContext } from "../SocketContext";
-import Chat from "./Chat";
-import ApproveNotice from "./Home/ApproveNotice";
-import { format } from "date-fns";
+// Import các thư viện cần thiết
+import React, { useState, useEffect, useContext, useCallback } from "react"; // Import React và các hooks
+import axios from "axios"; // Import thư viện HTTP client
+import { motion } from "framer-motion"; // Import thư viện animation
+import { SocketContext } from "../SocketContext"; // Import context quản lý socket
+import Chat from "./Chat"; // Import component chat
+import ApproveNotice from "./Home/ApproveNotice"; // Import component thông báo match
+import { format } from "date-fns"; // Import thư viện format thời gian
 
+// Định nghĩa interface cho tin nhắn cuối cùng
 interface LastMessage {
-  content: string;
-  createdAt: string;
-  isRead: boolean;
-  senderId: string;
-  receiverId: string;
+  content: string; // Nội dung tin nhắn
+  createdAt: string; // Thời gian tạo
+  isRead: boolean; // Trạng thái đã đọc
+  senderId: string; // ID người gửi
+  receiverId: string; // ID người nhận
 }
 
+// Định nghĩa interface cho thông tin người dùng
 interface User {
-  _id: string;
-  name: string;
-  email: string;
-  bio: string;
-  interests: string[];
-  profilePictures: string[];
-  age: number;
-  zodiacSign: string;
-  education: string;
-  hobbies: string;
-  gender: "male" | "female" | "other";
-  genderPreference: "male" | "female" | "both";
-  isOnline: boolean;
-  matchScore: number;
-  lastMessage?: LastMessage;
+  _id: string; // ID người dùng
+  name: string; // Tên người dùng
+  email: string; // Email
+  bio: string; // Tiểu sử
+  interests: string[]; // Danh sách sở thích
+  profilePictures: string[]; // Danh sách ảnh đại diện
+  age: number; // Tuổi
+  zodiacSign: string; // Cung hoàng đạo
+  education: string; // Học vấn
+  hobbies: string; // Sở thích
+  gender: "male" | "female" | "other"; // Giới tính
+  genderPreference: "male" | "female" | "both"; // Xu hướng tìm kiếm
+  isOnline: boolean; // Trạng thái online
+  matchScore: number; // Điểm match
+  lastMessage?: LastMessage; // Tin nhắn cuối cùng
 }
 
+// Định nghĩa interface cho props của component
 interface UserListsProps {
-  refresh: boolean;
-  onSelectUser: (userId: string) => void;
-  onClose?: () => void;
+  refresh: boolean; // Trạng thái refresh
+  onSelectUser: (userId: string) => void; // Hàm xử lý khi chọn người dùng
+  onClose?: () => void; // Hàm xử lý khi đóng component
 }
 
+// Component hiển thị thông tin chi tiết
 const InfoItem = ({
   label,
   value,
@@ -53,134 +58,45 @@ const InfoItem = ({
   </div>
 );
 
+// Component UserLists chính
 const UserLists: React.FC<UserListsProps> = ({ onClose }) => {
-  const [activeTab, setActiveTab] = useState<"matches" | "liked" | "likedBy">("matches");
-  const [likedUsers, setLikedUsers] = useState<User[]>([]);
-  const [likedByUsers, setLikedByUsers] = useState<User[]>([]);
-  const [matchedUsers, setMatchedUsers] = useState<User[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [selectedProfile, setSelectedProfile] = useState<User | null>(null);
-  const usersPerPage = 8;
-  const { socket }: any = useContext(SocketContext);
-  const [showNotice, setShowNotice] = useState(false);
-  const [currentFromId, setCurrentFromId] = useState("");
-  const [currentMatchId, setCurrentMatchId] = useState("");
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  // Khởi tạo các state
+  const [activeTab, setActiveTab] = useState<"matches" | "liked" | "likedBy">("matches"); // Tab đang active
+  const [likedUsers, setLikedUsers] = useState<User[]>([]); // Danh sách người dùng đã thích
+  const [likedByUsers, setLikedByUsers] = useState<User[]>([]); // Danh sách người dùng đã thích mình
+  const [matchedUsers, setMatchedUsers] = useState<User[]>([]); // Danh sách người dùng đã match
+  const [searchTerm, setSearchTerm] = useState(""); // Từ khóa tìm kiếm
+  const [currentPage, setCurrentPage] = useState(1); // Trang hiện tại
+  const [selectedUser, setSelectedUser] = useState<User | null>(null); // Người dùng được chọn
+  const [selectedProfile, setSelectedProfile] = useState<User | null>(null); // Profile được chọn
+  const usersPerPage = 8; // Số người dùng trên mỗi trang
+  const { socket }: any = useContext(SocketContext); // Socket context
+  const [showNotice, setShowNotice] = useState(false); // Trạng thái hiển thị thông báo
+  const [currentFromId, setCurrentFromId] = useState(""); // ID người gửi match
+  const [currentMatchId, setCurrentMatchId] = useState(""); // ID người nhận match
+  const [selectedImage, setSelectedImage] = useState<string | null>(null); // Ảnh được chọn
 
-  const fetchMatchedUsers = useCallback(async () => {
-    try {
-      const userId = JSON.parse(localStorage.getItem("user") || "{}")._id;
-      const response = await axios.get(
-        `${import.meta.env.VITE_LOCAL_API_URL}/users/${userId}/matches`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-
-      // Sử dụng Map để loại bỏ trùng lặp
-      const uniqueUsers = new Map();
-      response.data.forEach((user: User) => {
-        const existingUser = uniqueUsers.get(user._id);
-        if (!existingUser || (existingUser.lastMessage?.createdAt ?? 0) < (user.lastMessage?.createdAt ?? 0)) {
-          uniqueUsers.set(user._id, user);
-        }
-      });
-
-      const newMatchedUsers = Array.from(uniqueUsers.values());
-      if (JSON.stringify(newMatchedUsers) !== JSON.stringify(matchedUsers)) {
-        setMatchedUsers(newMatchedUsers);
-      }
-    } catch (error) {
-      console.error("Không thể lấy danh sách người dùng đã match:", error);
-    }
-  }, [matchedUsers]);
-
-  const fetchLikedUsers = useCallback(async () => {
-    try {
-      const userId = JSON.parse(localStorage.getItem("user") || "{}")._id;
-      const response = await axios.get(
-        `${import.meta.env.VITE_LOCAL_API_URL}/users/${userId}/liked-users`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-      const uniqueUsers = [...new Map(response.data.map((user: User) => [user._id, user])).values()];
-      setLikedUsers(uniqueUsers as User[]);
-    } catch (error) {
-      console.error("Không thể lấy danh sách người dùng đã thích:", error);
-    }
-  }, []);
-
-  const fetchLikedByUsers = useCallback(async () => {
-    try {
-      const userId = JSON.parse(localStorage.getItem("user") || "{}")._id;
-      const response = await axios.get(
-        `${import.meta.env.VITE_LOCAL_API_URL}/users/${userId}/liked-by`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-      const uniqueUsers = [...new Map(response.data.map((user: User) => [user._id, user])).values()];
-      setLikedByUsers(uniqueUsers as User[]);
-    } catch (error) {
-      console.error("Không thể lấy danh sách người dùng đã thích mình:", error);
-    }
-  }, []);
-
-  const markMessagesAsRead = async (targetUserId: string) => {
-    try {
-      const userId = JSON.parse(localStorage.getItem("user") || "{}")._id;
-      console.log('Marking messages as read for:', targetUserId); // Thêm log
-      await axios.post(
-        `${import.meta.env.VITE_LOCAL_API_URL}/chat/mark-as-read`,
-        { userId, targetUserId },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-    } catch (error) {
-      console.error("Không thể đánh dấu tin nhắn là đã đọc:", error);
-    }
-  };
-
-  useEffect(() => {
-    if (activeTab === "matches") {
-      fetchMatchedUsers();
-      
-    } else if (activeTab === "liked") {
-      fetchLikedUsers(); 
-    } else if (activeTab === "likedBy") {
-      fetchLikedByUsers();
-    }
-
-    let interval: NodeJS.Timeout;
-    if (activeTab === "matches") {
-      interval = setInterval(fetchMatchedUsers, 1000); // Tăng interval lên 5 giây để giảm số lần gọi API
-    }
-
-    return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
-    };
-  }, [activeTab, fetchMatchedUsers, fetchLikedUsers, fetchLikedByUsers]);
-
-  // Socket listeners
+  // Effect xử lý socket events
   useEffect(() => {
     if (!socket) return;
 
+    // Xử lý khi nhận danh sách người dùng đã match
+    const handleMatchedUsers = (users: User[]) => {
+      setMatchedUsers(users);
+    };
+
+    // Xử lý khi nhận danh sách người dùng đã thích
+    const handleLikedUsers = (users: User[]) => {
+      setLikedUsers(users);
+    };
+
+    // Xử lý khi nhận danh sách người dùng đã thích mình
+    const handleLikedByUsers = (users: User[]) => {
+      setLikedByUsers(users);
+    };
+
+    // Xử lý tin nhắn mới
     const handleNewMessage = (message: LastMessage) => {
-      // Cập nhật danh sách người dùng đã match với tin nhắn mới
       setMatchedUsers((prevUsers) => {
         const updatedUsers = prevUsers.map((user) => {
           if (user._id === message.senderId) {
@@ -195,93 +111,115 @@ const UserLists: React.FC<UserListsProps> = ({ onClose }) => {
       });
     };
 
-    socket.on("newMessage", handleNewMessage);
+    // Xử lý khi có người dùng mới thích
+    const handleNewLike = (data: { fromUserId: string; toUserId: string }) => {
+      const currentUserId = JSON.parse(localStorage.getItem("user") || "{}")._id;
+      if (data.toUserId === currentUserId) {
+        socket.emit("getLikedByUsers", { userId: currentUserId });
+      }
+    };
 
+    // Xử lý khi có match mới
+    const handleNewMatch = (data: { user1Id: string; user2Id: string }) => {
+      const currentUserId = JSON.parse(localStorage.getItem("user") || "{}")._id;
+      if (data.user1Id === currentUserId || data.user2Id === currentUserId) {
+        socket.emit("getMatchedUsers", { userId: currentUserId });
+        setShowNotice(true);
+        setCurrentFromId(data.user1Id);
+        setCurrentMatchId(data.user2Id);
+      }
+    };
+
+    // Xử lý khi có người dùng online/offline
+    const handleUserStatusChange = (data: { userId: string; isOnline: boolean }) => {
+      setMatchedUsers((prevUsers) => {
+        return prevUsers.map((user) => {
+          if (user._id === data.userId) {
+            return {
+              ...user,
+              isOnline: data.isOnline,
+            };
+          }
+          return user;
+        });
+      });
+    };
+
+    // Đăng ký các socket events
+    socket.on("matchedUsers", handleMatchedUsers);
+    socket.on("likedUsers", handleLikedUsers);
+    socket.on("likedByUsers", handleLikedByUsers);
+    socket.on("newMessage", handleNewMessage);
+    socket.on("newLike", handleNewLike);
+    socket.on("newMatch", handleNewMatch);
+    socket.on("userStatusChange", handleUserStatusChange);
+
+    // Lấy dữ liệu ban đầu
+    const currentUserId = JSON.parse(localStorage.getItem("user") || "{}")._id;
+    socket.emit("getMatchedUsers", { userId: currentUserId });
+    socket.emit("getLikedUsers", { userId: currentUserId });
+    socket.emit("getLikedByUsers", { userId: currentUserId });
+
+    // Cleanup khi component unmount
     return () => {
+      socket.off("matchedUsers", handleMatchedUsers);
+      socket.off("likedUsers", handleLikedUsers);
+      socket.off("likedByUsers", handleLikedByUsers);
       socket.off("newMessage", handleNewMessage);
+      socket.off("newLike", handleNewLike);
+      socket.off("newMatch", handleNewMatch);
+      socket.off("userStatusChange", handleUserStatusChange);
     };
   }, [socket]);
 
-  const getCurrentUsers = useCallback(() => {
-    let users: User[] = [];
+  // Effect xử lý khi chuyển tab
+  useEffect(() => {
+    const currentUserId = JSON.parse(localStorage.getItem("user") || "{}")._id;
+    
     switch (activeTab) {
       case "matches":
-        users = matchedUsers;
+        socket?.emit("getMatchedUsers", { userId: currentUserId });
         break;
       case "liked":
-        users = likedUsers;
+        socket?.emit("getLikedUsers", { userId: currentUserId });
         break;
       case "likedBy":
-        users = likedByUsers;
+        socket?.emit("getLikedByUsers", { userId: currentUserId });
         break;
     }
+  }, [activeTab, socket]);
 
-    const filteredUsers = users.filter((user) =>
-      user.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    const indexOfLastUser = currentPage * usersPerPage;
-    const indexOfFirstUser = indexOfLastUser - usersPerPage;
-    return {
-      users: filteredUsers.slice(indexOfFirstUser, indexOfLastUser),
-      totalUsers: filteredUsers.length,
-    };
-  }, [activeTab, matchedUsers, likedUsers, likedByUsers, searchTerm, currentPage]);
-
-  const handleSelectUser = (user: User) => {
-    if (activeTab === "matches") {
-      setSelectedUser(user);
-      if (user.lastMessage && !user.lastMessage.isRead && user.lastMessage.senderId !== JSON.parse(localStorage.getItem("user") || "{}")._id) {
-        markMessagesAsRead(user._id);
-      }
-    } else if (activeTab === "liked" || activeTab === "likedBy") {
-      setSelectedProfile(user);
+  // Hàm đánh dấu tin nhắn là đã đọc
+  const markMessagesAsRead = async (targetUserId: string) => {
+    try {
+      const userId = JSON.parse(localStorage.getItem("user") || "{}")._id;
+      socket?.emit("markMessagesAsRead", { userId, targetUserId });
+    } catch (error) {
+      console.error("Không thể đánh dấu tin nhắn là đã đọc:", error);
     }
   };
 
-  const handleBackToList = () => {
-    setSelectedUser(null);
-  };
-
-  const getTotalPages = () => {
-    const { totalUsers } = getCurrentUsers();
-    return Math.ceil(totalUsers / usersPerPage);
-  };
-
-  const handlePageChange = (pageNumber: number) => {
-    setCurrentPage(pageNumber);
-  };
-
+  // Hàm xử lý khi chấp nhận match
   const handleApproveMatch = async (targetUserId: string) => {
     try {
       const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
-      await axios.post(
-        "${import.meta.env.VITE_LOCAL_API_URL}/users/like",
-        {
-          userId: currentUser._id,
-          targetUserId: targetUserId,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-
-      // Đóng modal profile và refresh danh sách
+      socket?.emit("approveMatch", {
+        userId: currentUser._id,
+        targetUserId: targetUserId,
+      });
       setSelectedProfile(null);
-      fetchLikedByUsers();
     } catch (err) {
       console.error("Lỗi khi chấp nhận match:", err);
     }
   };
 
+  // Hàm xử lý khi từ chối match
   const handleRejectMatch = (targetUserId: string) => {
     const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
     setSelectedProfile(null);
-    fetchLikedByUsers();
   };
 
+  // Hàm format thời gian tin nhắn
   const formatMessageTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -311,13 +249,13 @@ const UserLists: React.FC<UserListsProps> = ({ onClose }) => {
     return format(date, 'dd/MM/yyyy');
   };
 
-  // Thêm hàm helper để lấy tên ngắn gọn
+  // Hàm lấy tên ngắn gọn
   const getShortName = (fullName: string) => {
     const names = fullName.trim().split(' ');
-    return names[names.length - 1]; // Lấy tên cuối cùng
+    return names[names.length - 1];
   };
 
-  // Cập nhật phần hiển thị tin nhắn
+  // Hàm render tin nhắn cuối cùng
   const renderLastMessage = (user: User) => {
     if (!user.lastMessage) {
       return (
@@ -344,19 +282,68 @@ const UserLists: React.FC<UserListsProps> = ({ onClose }) => {
     );
   };
 
+  // Hàm lấy danh sách người dùng hiện tại theo tab
+  const getCurrentUsers = useCallback(() => {
+    let users: User[] = [];
+    switch (activeTab) {
+      case "matches":
+        users = matchedUsers;
+        break;
+      case "liked":
+        users = likedUsers;
+        break;
+      case "likedBy":
+        users = likedByUsers;
+        break;
+    }
+
+    // Lọc theo từ khóa tìm kiếm
+    const filteredUsers = users.filter((user) =>
+      user.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    // Phân trang
+    const indexOfLastUser = currentPage * usersPerPage;
+    const indexOfFirstUser = indexOfLastUser - usersPerPage;
+    return {
+      users: filteredUsers.slice(indexOfFirstUser, indexOfLastUser),
+      totalUsers: filteredUsers.length,
+    };
+  }, [activeTab, matchedUsers, likedUsers, likedByUsers, searchTerm, currentPage]);
+
+  // Hàm xử lý khi chọn người dùng
+  const handleSelectUser = (user: User) => {
+    if (activeTab === "matches") {
+      setSelectedUser(user);
+      // Đánh dấu tin nhắn là đã đọc nếu cần
+      if (user.lastMessage && !user.lastMessage.isRead && user.lastMessage.senderId !== JSON.parse(localStorage.getItem("user") || "{}")._id) {
+        markMessagesAsRead(user._id);
+      }
+    } else if (activeTab === "liked" || activeTab === "likedBy") {
+      setSelectedProfile(user);
+    }
+  };
+
+  // Hàm quay lại danh sách
+  const handleBackToList = () => {
+    setSelectedUser(null);
+  };
+
+  // Hàm tính tổng số trang
+  const getTotalPages = () => {
+    const { totalUsers } = getCurrentUsers();
+    return Math.ceil(totalUsers / usersPerPage);
+  };
+
+  // Hàm xử lý khi chuyển trang
+  const handlePageChange = (pageNumber: number) => {
+    setCurrentPage(pageNumber);
+  };
+
+  // Render component
   return (
     <div className="bg-white rounded-lg shadow-md p-4 h-full overflow-y-auto scrollbar-custom">
-      {/* Header với nút đóng cho mobile */}
-      {/* <div className="flex justify-between items-center mb-4 md:hidden">
-        <h2 className="text-xl font-bold text-gray-800">Tin nhắn</h2>
-        <button
-          onClick={onClose}
-          className="text-gray-500 hover:text-gray-700"
-        >
-          <i className="fas fa-times text-xl"></i>
-        </button>
-      </div> */}
-
+      {/* Component thông báo match */}
       {showNotice && (
         <ApproveNotice
           fromUserName={currentFromId}
@@ -364,6 +351,8 @@ const UserLists: React.FC<UserListsProps> = ({ onClose }) => {
           onClose={() => setShowNotice(false)}
         />
       )}
+
+      {/* Render chat hoặc danh sách người dùng */}
       {selectedUser ? (
         <div className="h-full">
           <Chat
@@ -377,6 +366,7 @@ const UserLists: React.FC<UserListsProps> = ({ onClose }) => {
         </div>
       ) : (
         <>
+          {/* Tab navigation */}
           <div className="flex space-x-2 mb-6">
             <button
               onClick={() => setActiveTab("matches")}
@@ -410,6 +400,7 @@ const UserLists: React.FC<UserListsProps> = ({ onClose }) => {
             </button>
           </div>
 
+          {/* Thanh tìm kiếm */}
           <div className="mb-4">
             <input
               type="text"
@@ -420,6 +411,7 @@ const UserLists: React.FC<UserListsProps> = ({ onClose }) => {
             />
           </div>
 
+          {/* Danh sách người dùng */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -432,12 +424,10 @@ const UserLists: React.FC<UserListsProps> = ({ onClose }) => {
                 className="flex items-center p-3 hover:bg-gray-100 cursor-pointer rounded-lg"
                 onClick={() => handleSelectUser(user)}
               >
+                {/* Avatar và trạng thái online */}
                 <div className="relative">
                   <img
-                    src={
-                      user.profilePictures[0] ||
-                      "https://via.placeholder.com/40"
-                    }
+                    src={user.profilePictures[0] || "https://via.placeholder.com/40"}
                     alt={user.name}
                     className="w-12 h-12 rounded-full object-cover border-2 border-pink-500"
                   />
@@ -447,6 +437,8 @@ const UserLists: React.FC<UserListsProps> = ({ onClose }) => {
                     }`}
                   />
                 </div>
+
+                {/* Thông tin người dùng */}
                 <div className="ml-3 flex-grow">
                   <span className="font-semibold text-gray-800">
                     {user.name}
@@ -455,6 +447,8 @@ const UserLists: React.FC<UserListsProps> = ({ onClose }) => {
                     {renderLastMessage(user)}
                   </div>
                 </div>
+
+                {/* Thời gian tin nhắn */}
                 <div className="flex flex-col items-end">
                   {user.lastMessage?.createdAt && (
                     <span className="text-xs text-gray-400">
@@ -466,6 +460,7 @@ const UserLists: React.FC<UserListsProps> = ({ onClose }) => {
             ))}
           </motion.div>
 
+          {/* Phân trang */}
           <div className="flex justify-center items-center mt-4 space-x-2">
             {[...Array(getTotalPages())].map((_, index) => (
               <button
@@ -484,6 +479,7 @@ const UserLists: React.FC<UserListsProps> = ({ onClose }) => {
         </>
       )}
 
+      {/* Modal hiển thị thông tin chi tiết */}
       {selectedProfile && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
@@ -495,7 +491,7 @@ const UserLists: React.FC<UserListsProps> = ({ onClose }) => {
         >
           <div className="bg-white rounded-3xl max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
             <div className="p-6 md:p-8">
-              {/* Header với nút đóng */}
+              {/* Header */}
               <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
                 <h2 className="text-2xl font-bold text-gray-800">
                   Thông tin chi tiết
@@ -513,16 +509,16 @@ const UserLists: React.FC<UserListsProps> = ({ onClose }) => {
                 <div className="w-full md:w-1/3">
                   <div className="sticky top-0">
                     <div className="flex flex-col items-center bg-gradient-to-b from-pink-50 to-purple-50 rounded-2xl p-6">
+                      {/* Avatar */}
                       <div className="w-40 h-40 md:w-48 md:h-48 rounded-2xl border-4 border-white shadow-lg overflow-hidden mb-4">
                         <img
-                          src={
-                            selectedProfile.profilePictures[0] ||
-                            "https://via.placeholder.com/150"
-                          }
+                          src={selectedProfile.profilePictures[0] || "https://via.placeholder.com/150"}
                           alt={selectedProfile.name}
                           className="w-full h-full object-cover"
                         />
                       </div>
+
+                      {/* Thông tin cơ bản */}
                       <h2 className="text-2xl font-bold text-gray-800 mb-2">
                         {selectedProfile.name}
                       </h2>
@@ -539,17 +535,13 @@ const UserLists: React.FC<UserListsProps> = ({ onClose }) => {
                       {activeTab === "likedBy" && (
                         <div className="flex flex-col gap-3 mt-6 w-full">
                           <button
-                            onClick={() =>
-                              handleApproveMatch(selectedProfile._id)
-                            }
+                            onClick={() => handleApproveMatch(selectedProfile._id)}
                             className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full hover:opacity-90 transition duration-300 shadow-md"
                           >
                             <i className="fas fa-heart"></i> Đồng ý
                           </button>
                           <button
-                            onClick={() =>
-                              handleRejectMatch(selectedProfile._id)
-                            }
+                            onClick={() => handleRejectMatch(selectedProfile._id)}
                             className="w-full py-3 bg-white text-gray-700 border border-gray-300 rounded-full hover:bg-gray-50 transition duration-300"
                           >
                             <i className="fas fa-times"></i> Từ chối
@@ -570,14 +562,8 @@ const UserLists: React.FC<UserListsProps> = ({ onClose }) => {
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <InfoItem label="Tuổi" value={selectedProfile.age} />
-                      <InfoItem
-                        label="Học vấn"
-                        value={selectedProfile.education}
-                      />
-                      <InfoItem
-                        label="Cung hoàng đạo"
-                        value={selectedProfile.zodiacSign}
-                      />
+                      <InfoItem label="Học vấn" value={selectedProfile.education} />
+                      <InfoItem label="Cung hoàng đạo" value={selectedProfile.zodiacSign} />
                       <InfoItem
                         label="Giới tính"
                         value={

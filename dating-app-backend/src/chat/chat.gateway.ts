@@ -218,4 +218,86 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     } catch (error) {}
   }
+
+  @SubscribeMessage('getNearbyUsers')
+  async handleGetNearbyUsers(
+    client: Socket,
+    payload: { userId: string; maxDistance: number }
+  ) {
+    try {
+      const users = await this.userService.findNearbyUsers(
+        payload.userId,
+        payload.maxDistance
+      );
+      client.emit('nearbyUsers', users);
+    } catch (error) {
+      client.emit('error', { 
+        message: error instanceof Error ? error.message : 'Unknown error' 
+      });
+    }
+  }
+
+  @SubscribeMessage('getMatchedUsers')
+  async handleGetMatchedUsers(client: Socket, payload: { userId: string }) {
+    try {
+      const users = await this.userService.getMatchedUsers(payload.userId);
+      client.emit('matchedUsers', users);
+    } catch (error) {
+      client.emit('error', { 
+        message: error instanceof Error ? error.message : 'Unknown error' 
+      });
+    }
+  }
+
+  @SubscribeMessage('getLikedUsers')
+  async handleGetLikedUsers(client: Socket, payload: { userId: string }) {
+    try {
+      const users = await this.userService.getLikedUsers(payload.userId);
+      client.emit('likedUsers', users);
+    } catch (error) {
+      client.emit('error', { 
+        message: error instanceof Error ? error.message : 'Unknown error' 
+      });
+    }
+  }
+
+  @SubscribeMessage('getLikedByUsers')
+  async handleGetLikedByUsers(client: Socket, payload: { userId: string }) {
+    try {
+      const users = await this.userService.getUsersWhoLikedMe(payload.userId);
+      client.emit('likedByUsers', users);
+    } catch (error) {
+      client.emit('error', { 
+        message: error instanceof Error ? error.message : 'Unknown error' 
+      });
+    }
+  }
+
+  @SubscribeMessage('markMessagesAsRead')
+  async handleMarkMessagesAsRead(client: Socket, payload: { userId: string; targetUserId: string }) {
+    try {
+      await this.chatService.markMessagesAsRead(payload.userId, payload.targetUserId);
+      client.emit('messagesRead', { success: true });
+    } catch (error) {
+      client.emit('error', { 
+        message: error instanceof Error ? error.message : 'Unknown error' 
+      });
+    }
+  }
+
+  @SubscribeMessage('approveMatch')
+  async handleApproveMatch(client: Socket, payload: { userId: string; targetUserId: string }) {
+    try {
+      await this.handleMatch(client, {
+        currentUserId: payload.userId,
+        targetUserId: payload.targetUserId,
+        approveStatus: 'success'
+      });
+      client.emit('matchApproved', { success: true });
+    } catch (error) {
+      client.emit('error', { 
+        message: error instanceof Error ? error.message : 'Unknown error' 
+      });
+    }
+  }
 }
