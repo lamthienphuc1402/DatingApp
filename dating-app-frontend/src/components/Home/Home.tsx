@@ -478,7 +478,7 @@ const Home = ({
 
   // Render component
   return (
-    <div className="main-container">
+    <div className="main-container min-h-screen bg-gradient-to-br from-purple-400 via-pink-400 to-pink-600">
       {/* Component thông báo match */}
       <ApproveNotice
         socket={socket}
@@ -491,15 +491,17 @@ const Home = ({
         fromUser={currentFromId}
         targetUser={currentMatchId}
       />
-      <div className="min-h-screen pt-16 bg-gradient-to-br from-purple-400 via-pink-400 to-pink-600 flex flex-col md:flex-row">
+      <div className="flex flex-col md:flex-row min-h-screen pt-16">
         {/* Component điều hướng */}
-        <Navigation 
-          showUserLists={showUserLists}
-          setShowUserLists={setShowUserLists}
-          refresh={refresh}
-          onSelectUser={handleSelectUser}
-          unreadCount={unreadCount}
-        />
+        <div className="md:w-[320px] lg:w-[350px] xl:w-[380px] flex-shrink-0">
+          <Navigation 
+            showUserLists={showUserLists}
+            setShowUserLists={setShowUserLists}
+            refresh={refresh}
+            onSelectUser={handleSelectUser}
+            unreadCount={unreadCount}
+          />
+        </div>
 
         {/* Nội dung chính */}
         <div className="flex-1 p-4 md:px-6 lg:px-8 overflow-y-auto">
