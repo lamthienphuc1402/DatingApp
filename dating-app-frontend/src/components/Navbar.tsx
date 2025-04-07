@@ -1,7 +1,7 @@
 import React, { useContext, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { SocketContext } from "../SocketContext";
-import ICO from "../../public/images/ICO.png";
+import ICO from "/images/ICO.png";
 
 type NavbarType = {
   isLoggedIn: boolean;

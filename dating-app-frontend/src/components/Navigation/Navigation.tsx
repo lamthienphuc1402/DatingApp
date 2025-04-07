@@ -56,7 +56,7 @@ const Navigation: React.FC<NavigationProps> = ({
           md:translate-x-0
           z-40 md:z-auto
           overflow-hidden
-        `}
+        `} 
       >
         <UserLists
           refresh={refresh}
