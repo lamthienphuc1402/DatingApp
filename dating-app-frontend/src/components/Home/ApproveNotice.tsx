@@ -3,24 +3,6 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const ApproveNotice = ({ fromUserName, toUserName, socket }: any) => {
-  const [toUser, setToUser] = useState<any>();
-  const [fromUser, setFromUser] = useState<any>();
-  console.log(fromUserName);
-  console.log(toUserName);
-  useEffect(() => {
-    const fetchData = async () => {
-      const [toUserRes, fromUserRes] = await Promise.all([
-        axios.get(`${import.meta.env.VITE_LOCAL_API_URL}/users/${toUserName}`),
-        axios.get(
-          `${import.meta.env.VITE_LOCAL_API_URL}/users/${fromUserName}`
-        ),
-      ]);
-      setToUser(toUserRes.data);
-      setFromUser(fromUserRes.data);
-    };
-    fetchData();
-  }, [toUserName, fromUserName]);
-
   const onClose = () => {
     const modal: any = document.getElementById("notice");
     socket.off("sendLike");
@@ -55,8 +37,8 @@ const ApproveNotice = ({ fromUserName, toUserName, socket }: any) => {
               whileHover={{ scale: 1.1 }}
             >
               <img
-                src={fromUser?.profilePictures?.[0]}
-                alt={fromUser?.name}
+                src="/images/default-avatar.png"
+                alt={fromUserName}
                 className="w-full h-full object-cover"
               />
             </motion.div>
@@ -71,8 +53,8 @@ const ApproveNotice = ({ fromUserName, toUserName, socket }: any) => {
               whileHover={{ scale: 1.1 }}
             >
               <img
-                src={toUser?.profilePictures?.[0]}
-                alt={toUser?.name}
+                src="/images/default-avatar.png"
+                alt={toUserName}
                 className="w-full h-full object-cover"
               />
             </motion.div>
@@ -116,7 +98,7 @@ const ApproveNotice = ({ fromUserName, toUserName, socket }: any) => {
             🎉 Match thành công! 🎉
           </motion.h3>
           <p className="text-lg text-gray-600 mb-4">
-            Bạn và {toUser?.name} đã match với nhau!
+            Bạn và {toUserName} đã match với nhau!
           </p>
           <motion.button
             whileHover={{ scale: 1.05 }}

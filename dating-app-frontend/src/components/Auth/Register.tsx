@@ -18,6 +18,7 @@ const Register = ({ setIsLoggedIn, setUserId }: RegisterType) => {
         name: '',
         email: '',
         password: '',
+        confirmPassword: '',
         bio: '',
         interests: '',
         age: '',
@@ -95,6 +96,7 @@ const Register = ({ setIsLoggedIn, setUserId }: RegisterType) => {
         if (!userData.name.trim()) errors.name = 'Vui lòng nhập tên';
         if (!userData.email.trim()) errors.email = 'Vui lòng nhập email';
         if (!userData.password.trim()) errors.password = 'Vui lòng nhập mật khẩu';
+        if (!userData.confirmPassword.trim()) errors.confirmPassword = 'Vui lòng xác nhận mật khẩu';
         if (!userData.age) errors.age = 'Vui lòng nhập tuổi';
         if (!userData.zodiacSign) errors.zodiacSign = 'Vui lòng chọn cung hoàng đạo';
 
@@ -112,6 +114,11 @@ const Register = ({ setIsLoggedIn, setUserId }: RegisterType) => {
         // Validate password length
         if (userData.password && userData.password.length < 6) {
             errors.password = 'Mật khẩu phải có ít nhất 6 ký tự';
+        }
+
+        // Validate password match
+        if (userData.password !== userData.confirmPassword) {
+            errors.confirmPassword = 'Mật khẩu xác nhận không khớp';
         }
 
         // Validate ít nhất 1 ảnh
@@ -257,6 +264,27 @@ const Register = ({ setIsLoggedIn, setUserId }: RegisterType) => {
                                     <p className="text-red-500 text-sm mt-1">
                                         <i className="fas fa-exclamation-circle mr-1"></i>
                                         {formErrors.password}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="form-group">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <i className="fas fa-lock mr-2 text-purple-500"></i>
+                                    Xác nhận mật khẩu
+                                </label>
+                                <input
+                                    type="password"
+                                    name="confirmPassword"
+                                    value={userData.confirmPassword}
+                                    onChange={handleChange}
+                                    className={`w-full px-4 py-2 rounded-lg border ${formErrors.confirmPassword ? 'border-red-500' : 'border-gray-300'
+                                        } bg-white text-black focus:ring-2 focus:ring-purple-500`}
+                                />
+                                {formErrors.confirmPassword && (
+                                    <p className="text-red-500 text-sm mt-1">
+                                        <i className="fas fa-exclamation-circle mr-1"></i>
+                                        {formErrors.confirmPassword}
                                     </p>
                                 )}
                             </div>
