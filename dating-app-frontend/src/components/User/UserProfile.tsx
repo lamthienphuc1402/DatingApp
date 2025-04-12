@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react"; // Import React và các hooks
 import axios from "axios"; // Import thư viện HTTP client
 import UserProfileEdit from "./UserProfileEdit"; // Import component chỉnh sửa profile
+import { useParams } from "react-router-dom"; // Import useParams
 
 // Định nghĩa interface cho dữ liệu người dùng
 interface UserData {
@@ -31,17 +32,14 @@ const UserProfile = ({ setIsLoggedIn }: any) => {
   const [isEditing, setIsEditing] = useState(false); // Trạng thái đang chỉnh sửa
   const [user, setUser] = useState<UserData | null>(null); // Dữ liệu người dùng
   const [error, setError] = useState(""); // Thông báo lỗi
+  const { userId } = useParams(); // Lấy userId từ URL params
 
   // Hàm lấy dữ liệu người dùng
   const fetchUserData = async () => {
     try {
-      // Lấy thông tin người dùng từ localStorage
-      const userData = JSON.parse(localStorage.getItem("user") || "{}");
-      console.log("User data từ localStorage:", userData);
-
       // Gọi API lấy thông tin chi tiết người dùng
       const response = await axios.get(
-        `${import.meta.env.VITE_LOCAL_API_URL}/users/${userData._id}`,
+        `${import.meta.env.VITE_LOCAL_API_URL}/users/${userId}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -58,10 +56,12 @@ const UserProfile = ({ setIsLoggedIn }: any) => {
     }
   };
 
-  // Effect lấy dữ liệu khi component mount
+  // Effect lấy dữ liệu khi component mount hoặc userId thay đổi
   useEffect(() => {
-    fetchUserData();
-  }, []);
+    if (userId) {
+      fetchUserData();
+    }
+  }, [userId]);
 
   // Hàm xử lý cập nhật profile
   const handleUpdate = async () => {

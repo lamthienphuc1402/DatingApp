@@ -79,13 +79,7 @@ function App() {
           />
           <Route
             path="/users/:userId"
-            element={
-              checkLogin ? (
-                <Login setIsLoggedIn={setIsLoggedIn} setUserId={setUserId} />
-              ) : (
-                <UserProfile setIsLoggedIn={setIsLoggedIn} />
-              )
-            }
+            element={<UserProfile setIsLoggedIn={setIsLoggedIn} />}
           />
           <Route
             path="/ai"

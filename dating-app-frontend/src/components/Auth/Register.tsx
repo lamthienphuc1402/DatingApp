@@ -135,7 +135,30 @@ const Register = ({ setIsLoggedIn, setUserId }: RegisterType) => {
 
         // Validate form trước khi submit
         if (!validateForm()) {
-            toast.error('Vui lòng điền đầy đủ thông tin bắt buộc');
+            // Hiển thị chi tiết các lỗi
+            const errorMessages = Object.entries(formErrors).map(([field, message]) => {
+                const fieldNames: { [key: string]: string } = {
+                    name: 'Tên',
+                    email: 'Email',
+                    password: 'Mật khẩu',
+                    confirmPassword: 'Xác nhận mật khẩu',
+                    age: 'Tuổi',
+                    zodiacSign: 'Cung hoàng đạo',
+                    photos: 'Ảnh đại diện'
+                };
+                return `${fieldNames[field] || field}: ${message}`;
+            });
+            
+            toast.error(
+                <div>
+                    <p className="font-bold mb-2">Vui lòng sửa các lỗi sau:</p>
+                    <ul className="list-disc pl-4">
+                        {errorMessages.map((msg, index) => (
+                            <li key={index}>{msg}</li>
+                        ))}
+                    </ul>
+                </div>
+            );
             return;
         }
 
@@ -163,8 +186,15 @@ const Register = ({ setIsLoggedIn, setUserId }: RegisterType) => {
         try {
             await submit.mutateAsync(formData);
             toast.success('Đăng ký thành công! Vui lòng đăng nhập.');
-        } catch (err) {
-            toast.error('Đăng ký thất bại. Vui lòng kiểm tra lại thông tin!');
+        } catch (err: any) {
+            // Xử lý các loại lỗi cụ thể từ server
+            if (err.response?.data?.message) {
+                toast.error(err.response.data.message);
+            } else if (err.response?.data?.error) {
+                toast.error(err.response.data.error);
+            } else {
+                toast.error('Đăng ký thất bại. Vui lòng kiểm tra lại thông tin!');
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -195,6 +225,17 @@ const Register = ({ setIsLoggedIn, setUserId }: RegisterType) => {
                     <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded">
                         <i className="fas fa-exclamation-circle mr-2"></i>
                         {error}
+                    </div>
+                )}
+                {/* Hiển thị lỗi form */}
+                {Object.keys(formErrors).length > 0 && (
+                    <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded">
+                        <p className="font-bold mb-2">Vui lòng sửa các lỗi sau:</p>
+                        <ul className="list-disc pl-4">
+                            {Object.entries(formErrors).map(([field, message], index) => (
+                                <li key={index}>{message}</li>
+                            ))}
+                        </ul>
                     </div>
                 )}
 
